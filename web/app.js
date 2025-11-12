@@ -271,12 +271,12 @@ async function initWasm() {
 	let instance;
 	if (WebAssembly.instantiateStreaming) {
 		const result = await WebAssembly.instantiateStreaming(
-			fetch("/app.wasm"),
+			fetch("app.wasm"),
 			go.importObject,
 		);
 		instance = result.instance;
 	} else {
-		const response = await fetch("/app.wasm");
+		const response = await fetch("app.wasm");
 		const bytes = await response.arrayBuffer();
 		const result = await WebAssembly.instantiate(bytes, go.importObject);
 		instance = result.instance;
