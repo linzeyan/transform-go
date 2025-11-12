@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>transform-go</title>
+		<link rel="stylesheet" href="/style.css" />
+	</head>
+	<body>
+		<header class="topbar">
+			<div class="brand">
+				<strong>transform-go</strong>
+				<span>JSON ⇌ Go struct</span>
+			</div>
+			<div class="toolbar">
+				<div class="mode-select">
+					<select id="fromSelect">
+						<option value="JSON">JSON</option>
+						<option value="Go Struct">Go Struct</option>
+						<option value="YAML">YAML</option>
+						<option value="TOML">TOML</option>
+						<option value="JSON Schema">JSON Schema</option>
+					</select>
+					<button id="swap" title="Swap">&#8646;</button>
+					<select id="toSelect">
+						<option value="Go Struct">Go Struct</option>
+						<option value="JSON">JSON</option>
+						<option value="YAML">YAML</option>
+						<option value="TOML">TOML</option>
+						<option value="JSON Schema">JSON Schema</option>
+					</select>
+				</div>
+				<div class="actions">
+					<button id="copy">Copy output</button>
+					<button id="clear">Clear</button>
+				</div>
+			</div>
+		</header>
+
+		<main>
+			<section class="panel">
+				<div class="panel-header">
+					<div>
+						<h2 id="inputLabel">JSON</h2>
+						<p>Input</p>
+					</div>
+				</div>
+				<textarea
+					id="input"
+					spellcheck="false"
+					placeholder='貼上 JSON 或 Go struct...'
+				></textarea>
+			</section>
+			<section class="panel">
+				<div class="panel-header">
+					<div>
+						<h2 id="outputLabel">Go Struct</h2>
+						<p>Output</p>
+					</div>
+				</div>
+				<textarea id="output" spellcheck="false" readonly></textarea>
+			</section>
+		</main>
+
+		<footer>
+			<div id="status">載入 WebAssembly...</div>
+			<div class="hotkeys">⌘/Ctrl + L 清除 · ⌘/Ctrl + Enter 立即轉換</div>
+		</footer>
+
+		<script src="/wasm_exec.js"></script>
+		<script src="/app.js"></script>
+	</body>
+</html>
