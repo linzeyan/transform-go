@@ -26,6 +26,7 @@ func main() {
 	r.GET("/style.css", serveAsset("web/style.css", "text/css", true))
 	r.GET("/wasm_exec.js", serveAsset("web/wasm_exec.js", "text/javascript", true))
 	r.GET("/app.wasm", serveAsset("web/app.wasm", "application/wasm", false))
+	r.GET("/favicon.svg", serveAsset("web/favicon.svg", "image/svg+xml", false))
 
 	log.Println("listening on :8880")
 	if err := r.Run(":8880"); err != nil {
