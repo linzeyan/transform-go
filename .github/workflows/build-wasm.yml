@@ -31,7 +31,7 @@ jobs:
         env:
           GOOS: js
           GOARCH: wasm
-        run: go build -o web/app.wasm ./wasm
+        run: go build -ldflags="-s -w" -o web/app.wasm ./wasm
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

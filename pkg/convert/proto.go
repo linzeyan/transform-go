@@ -258,17 +258,13 @@ func goTypeToProto(expr ast.Expr) (bool, string) {
 
 func identProtoType(name string) string {
 	switch name {
-	case "string":
-		return "string"
-	case "bool":
-		return "bool"
+	case "string", "bool", "int64", "uint64", "int32", "uint32":
+		return name
 	case "float32":
 		return "float"
 	case "float64":
 		return "double"
-	case "int64", "uint64":
-		return "int64"
-	case "int", "int32", "uint32":
+	case "int", "int8", "int16", "uint", "uint8", "uint16":
 		return "int32"
 	default:
 		return name

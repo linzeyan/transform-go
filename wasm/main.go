@@ -120,20 +120,17 @@ func transformFormat(_ js.Value, args []js.Value) any {
 }
 
 func convertFormats(from, to, input string) (string, error) {
-	if from == "Go Struct" && to == "GraphQL Schema" {
-		return convert.GoStructToGraphQL(input)
-	}
-	if from == "GraphQL Schema" && to == "Go Struct" {
-		return convert.GraphQLToGoStruct(input)
-	}
-	if from == "Go Struct" && to == "Protobuf" {
-		return convert.GoStructToProto(input)
-	}
-	if from == "Protobuf" && to == "Go Struct" {
-		return convert.ProtoToGoStruct(input)
-	}
-	if from == to {
+	switch {
+	case from == to:
 		return input, nil
+	case from == "Go Struct" && to == "GraphQL Schema":
+		return convert.GoStructToGraphQL(input)
+	case from == "GraphQL Schema" && to == "Go Struct":
+		return convert.GraphQLToGoStruct(input)
+	case from == "Go Struct" && to == "Protobuf":
+		return convert.GoStructToProto(input)
+	case from == "Protobuf" && to == "Go Struct":
+		return convert.ProtoToGoStruct(input)
 	}
 	fromAdapter, ok := formatAdapters[from]
 	if !ok {

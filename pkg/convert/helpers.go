@@ -169,11 +169,11 @@ func splitWords(s string) []string {
 				current = append(current, r)
 			}
 		case unicode.IsDigit(r):
-			if !unicode.IsDigit(prev) {
+			if unicode.IsDigit(prev) || unicode.IsUpper(prev) {
+				current = append(current, r)
+			} else {
 				parts = append(parts, string(current))
 				current = []rune{r}
-			} else {
-				current = append(current, r)
 			}
 		default:
 			if unicode.IsDigit(prev) {

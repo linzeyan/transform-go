@@ -16,7 +16,7 @@ func JSONToYAML(input string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return encodeYAML(data)
+	return encodeYAML(normalizeJSONNumbers(data))
 }
 
 func YAMLToJSON(input string) (string, error) {
