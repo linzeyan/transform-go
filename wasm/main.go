@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"syscall/js"
 
 	"github.com/linzeyan/transform-go/pkg/convert"
@@ -50,6 +49,7 @@ func registerBindings(target js.Value) {
 	}
 
 	target.Set("transformFormat", js.FuncOf(transformFormat))
+	target.Set("formatContent", js.FuncOf(formatContent))
 }
 
 var boundHandlers []js.Func
@@ -69,42 +69,6 @@ func bind(target js.Value, name string, fn converter) {
 	target.Set(name, handler)
 }
 
-type formatAdapter struct {
-	toJSON   func(string) (string, error)
-	fromJSON func(string) (string, error)
-}
-
-var formatAdapters = map[string]formatAdapter{
-	"JSON": {
-		toJSON:   func(s string) (string, error) { return s, nil },
-		fromJSON: func(s string) (string, error) { return s, nil },
-	},
-	"Go Struct": {
-		toJSON:   convert.GoStructToJSON,
-		fromJSON: convert.JSONToGoStruct,
-	},
-	"YAML": {
-		toJSON:   convert.YAMLToJSON,
-		fromJSON: convert.JSONToYAML,
-	},
-	"TOML": {
-		toJSON:   convert.TOMLToJSON,
-		fromJSON: convert.JSONToTOML,
-	},
-	"JSON Schema": {
-		toJSON:   convert.SchemaToJSON,
-		fromJSON: convert.JSONToSchema,
-	},
-	"GraphQL Schema": {
-		toJSON:   convert.GraphQLToJSON,
-		fromJSON: convert.JSONToGraphQL,
-	},
-	"Protobuf": {
-		toJSON:   convert.ProtoToJSON,
-		fromJSON: convert.JSONToProto,
-	},
-}
-
 func transformFormat(_ js.Value, args []js.Value) any {
 	if len(args) < 3 {
 		return map[string]any{"error": "from, to, input required"}
@@ -112,51 +76,23 @@ func transformFormat(_ js.Value, args []js.Value) any {
 	from := args[0].String()
 	to := args[1].String()
 	input := args[2].String()
-	out, err := convertFormats(from, to, input)
+	out, err := convert.ConvertFormats(from, to, input)
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}
 	return map[string]any{"result": out}
 }
 
-func convertFormats(from, to, input string) (string, error) {
-	switch {
-	case from == to:
-		return input, nil
-	case from == "Go Struct" && to == "GraphQL Schema":
-		return convert.GoStructToGraphQL(input)
-	case from == "GraphQL Schema" && to == "Go Struct":
-		return convert.GraphQLToGoStruct(input)
-	case from == "Go Struct" && to == "Protobuf":
-		return convert.GoStructToProto(input)
-	case from == "Protobuf" && to == "Go Struct":
-		return convert.ProtoToGoStruct(input)
+func formatContent(_ js.Value, args []js.Value) any {
+	if len(args) < 3 {
+		return map[string]any{"error": "format, input, minify required"}
 	}
-	fromAdapter, ok := formatAdapters[from]
-	if !ok {
-		return "", fmt.Errorf("unsupported source format: %s", from)
+	formatName := args[0].String()
+	input := args[1].String()
+	minify := args[2].Bool()
+	out, err := convert.FormatContent(formatName, input, minify)
+	if err != nil {
+		return map[string]any{"error": err.Error()}
 	}
-	toAdapter, ok := formatAdapters[to]
-	if !ok {
-		return "", fmt.Errorf("unsupported target format: %s", to)
-	}
-	var mid string
-	var err error
-	if from == "JSON" {
-		mid = input
-	} else if fromAdapter.toJSON != nil {
-		mid, err = fromAdapter.toJSON(input)
-		if err != nil {
-			return "", err
-		}
-	} else {
-		return "", fmt.Errorf("format %s cannot convert to JSON", from)
-	}
-	if to == "JSON" {
-		return mid, nil
-	}
-	if toAdapter.fromJSON == nil {
-		return "", fmt.Errorf("format %s cannot be generated from JSON", to)
-	}
-	return toAdapter.fromJSON(mid)
+	return map[string]any{"result": out}
 }

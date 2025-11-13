@@ -56,20 +56,35 @@ function cacheElements() {
 	elements.status = document.getElementById("status");
 	elements.inputLabel = document.getElementById("inputLabel");
 	elements.outputLabel = document.getElementById("outputLabel");
+	elements.formatInput = document.getElementById("formatInput");
+	elements.minifyInput = document.getElementById("minifyInput");
+	elements.formatOutput = document.getElementById("formatOutput");
+	elements.minifyOutput = document.getElementById("minifyOutput");
 }
 
 function bindEvents() {
-	elements.from.addEventListener("change", () => onModeChange("from"));
-	elements.to.addEventListener("change", () => onModeChange("to"));
+	elements.from.addEventListener("change", onModeChange);
+	elements.to.addEventListener("change", onModeChange);
 	elements.swap.addEventListener("click", onSwap);
 	elements.copy.addEventListener("click", copyOutput);
 	elements.clear.addEventListener("click", clearAll);
 	elements.input.addEventListener("input", () => scheduleConvert());
+	elements.formatInput.addEventListener("click", () =>
+		formatField(elements.input, elements.from.value, false),
+	);
+	elements.minifyInput.addEventListener("click", () =>
+		formatField(elements.input, elements.from.value, true),
+	);
+	elements.formatOutput.addEventListener("click", () =>
+		formatField(elements.output, elements.to.value, false),
+	);
+	elements.minifyOutput.addEventListener("click", () =>
+		formatField(elements.output, elements.to.value, true),
+	);
 	window.addEventListener("keydown", handleHotkeys);
 }
 
-function onModeChange(source) {
-	ensureDistinctSelections(source);
+function onModeChange() {
 	if (!ensureMode()) {
 		setStatus("這個組合尚未支援", true);
 	}
@@ -89,7 +104,7 @@ function onSwap() {
 function ensureMode() {
 	const from = elements.from.value;
 	const to = elements.to.value;
-	if (!supportedFormats.has(from) || !supportedFormats.has(to) || from === to) {
+	if (!supportedFormats.has(from) || !supportedFormats.has(to)) {
 		currentKey = null;
 		return false;
 	}
@@ -99,20 +114,6 @@ function ensureMode() {
 	elements.input.placeholder = samples[from] || "";
 	scheduleConvert(true);
 	return true;
-}
-
-function ensureDistinctSelections(source) {
-	if (elements.from.value !== elements.to.value) {
-		return;
-	}
-	const adjustTarget = source === "from" ? elements.to : elements.from;
-	const conflict = source === "from" ? elements.from.value : elements.to.value;
-	const fallback = Array.from(adjustTarget.options).find(
-		(opt) => opt.value !== conflict,
-	);
-	if (fallback) {
-		adjustTarget.value = fallback.value;
-	}
 }
 
 function scheduleConvert(immediate = false) {
@@ -129,10 +130,6 @@ function convert() {
 	const to = elements.to.value;
 	if (!supportedFormats.has(from) || !supportedFormats.has(to)) {
 		setStatus("不支援的格式", true);
-		return;
-	}
-	if (from === to) {
-		setStatus("輸入與輸出格式相同", true);
 		return;
 	}
 	if (!wasmReady) {
@@ -192,6 +189,37 @@ function handleHotkeys(e) {
 	} else if (key === "enter") {
 		e.preventDefault();
 		scheduleConvert(true);
+	}
+}
+
+function formatField(target, format, minify) {
+	if (!wasmReady) {
+		setStatus("等待 WebAssembly 載入...", true);
+		return;
+	}
+	if (!supportedFormats.has(format)) {
+		setStatus("不支援的格式", true);
+		return;
+	}
+	const text = target.value;
+	if (!text.trim()) {
+		setStatus("沒有可處理的內容", true);
+		return;
+	}
+	try {
+		const result = window.formatContent(format, text, minify);
+		if (!result) {
+			setStatus("WASM 尚未載入完成", true);
+			return;
+		}
+		if (result.error) {
+			setStatus(`⚠️ ${result.error}`, true);
+			return;
+		}
+		target.value = result.result || "";
+		setStatus(minify ? "已壓縮" : "已格式化", false, "ready");
+	} catch (err) {
+		setStatus(`⚠️ ${err.message}`, true);
 	}
 }
 

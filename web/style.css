@@ -145,6 +145,24 @@ main {
   font-size: 12px;
 }
 
+.panel-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.panel-actions .ghost-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.panel-actions .ghost-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 textarea {
   flex: 1;
   background: transparent;
