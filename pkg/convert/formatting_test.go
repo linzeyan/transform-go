@@ -72,3 +72,22 @@ func Test_FormatContent_InvalidFormat(t *testing.T) {
 	_, err := FormatContent("Unknown", "data", false)
 	require.Error(t, err)
 }
+
+func TestMsgPackRoundTrip(t *testing.T) {
+	jsonInput := `{"id":1,"name":"Alice","active":true}`
+	mp, err := JSONToMsgPack(jsonInput)
+	require.NoError(t, err)
+	back, err := MsgPackToJSON(mp)
+	require.NoError(t, err)
+	require.Contains(t, back, `"name": "Alice"`)
+}
+
+func TestTOONRoundTrip(t *testing.T) {
+	jsonInput := `{"users":[{"id":1,"name":"Ada"},{"id":2,"name":"Bob"}],"count":2}`
+	toon, err := JSONToTOON(jsonInput)
+	require.NoError(t, err)
+	require.Contains(t, toon, "users[2]")
+	back, err := TOONToJSON(toon)
+	require.NoError(t, err)
+	require.Contains(t, back, `"count": 2`)
+}

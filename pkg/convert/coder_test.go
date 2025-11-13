@@ -57,9 +57,9 @@ func TestHashContent(t *testing.T) {
 }
 
 func TestURLEncodeDecode(t *testing.T) {
-	input := "https://example.com/search?q=中文 空格&x=1+2"
+	input := "https://example.com/search?q=Hello Space&x=1+2"
 	encoded := URLEncode(input)
-	require.Equal(t, "https%3A%2F%2Fexample.com%2Fsearch%3Fq%3D%E4%B8%AD%E6%96%87+%E7%A9%BA%E6%A0%BC%26x%3D1%2B2", encoded)
+	require.Equal(t, "https%3A%2F%2Fexample.com%2Fsearch%3Fq%3DHello+Space%26x%3D1%2B2", encoded)
 	decoded, err := URLDecode(encoded)
 	require.NoError(t, err)
 	require.Equal(t, input, decoded)

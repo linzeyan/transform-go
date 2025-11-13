@@ -62,6 +62,11 @@ func registerBindings(target js.Value) {
 	target.Set("convertNumberBase", js.FuncOf(convertNumberBase))
 	target.Set("ipv4Info", js.FuncOf(ipv4Info))
 	target.Set("generateUUIDs", js.FuncOf(generateUUIDs))
+	target.Set("generateUserAgents", js.FuncOf(generateUserAgents))
+	target.Set("jsonToMsgPack", js.FuncOf(jsonToMsgPack))
+	target.Set("msgPackToJSON", js.FuncOf(msgPackToJSON))
+	target.Set("jsonToTOON", js.FuncOf(jsonToTOON))
+	target.Set("toonToJSON", js.FuncOf(toonToJSON))
 }
 
 var boundHandlers []js.Func
@@ -251,6 +256,77 @@ func generateUUIDs(_ js.Value, _ []js.Value) any {
 		return map[string]any{"error": err.Error()}
 	}
 	return map[string]any{"result": stringMapToAny(result)}
+}
+
+func generateUserAgents(_ js.Value, args []js.Value) any {
+	var browser, os string
+	if len(args) > 0 {
+		browser = args[0].String()
+	}
+	if len(args) > 1 {
+		os = args[1].String()
+	}
+	result, err := convert.GenerateUserAgents(browser, os)
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	entries := make([]any, len(result))
+	for i, ua := range result {
+		entries[i] = map[string]any{
+			"userAgent":      ua.UserAgent,
+			"browserName":    ua.BrowserName,
+			"browserVersion": ua.BrowserVersion,
+			"osName":         ua.OSName,
+			"osVersion":      ua.OSVersion,
+			"engineName":     ua.EngineName,
+			"engineVersion":  ua.EngineVersion,
+		}
+	}
+	return map[string]any{"result": entries}
+}
+
+func jsonToMsgPack(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	out, err := convert.JSONToMsgPack(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": out}
+}
+
+func msgPackToJSON(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	out, err := convert.MsgPackToJSON(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": out}
+}
+
+func jsonToTOON(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	out, err := convert.JSONToTOON(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": out}
+}
+
+func toonToJSON(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	out, err := convert.TOONToJSON(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": out}
 }
 
 func stringMapToAny(in map[string]string) map[string]any {

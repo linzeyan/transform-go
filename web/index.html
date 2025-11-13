@@ -12,7 +12,7 @@
 			<aside id="sidebar">
 				<div class="sidebar-brand">
 					<strong>transform-go</strong>
-					<span>工具列表</span>
+					<span>Toolbox</span>
 				</div>
 				<nav id="toolGroups"></nav>
 			</aside>
@@ -34,6 +34,8 @@
 								<option value="JSON Schema">JSON Schema</option>
 								<option value="GraphQL Schema">GraphQL Schema</option>
 								<option value="Protobuf">Protobuf</option>
+								<option value="TOON">TOON</option>
+								<option value="MsgPack">MsgPack</option>
 							</select>
 							<button id="swap" title="Swap">&#8646;</button>
 							<select id="toSelect">
@@ -45,6 +47,8 @@
 								<option value="JSON Schema">JSON Schema</option>
 								<option value="GraphQL Schema">GraphQL Schema</option>
 								<option value="Protobuf">Protobuf</option>
+								<option value="TOON">TOON</option>
+								<option value="MsgPack">MsgPack</option>
 							</select>
 						</div>
 						<div class="actions converter-only">
@@ -69,7 +73,7 @@
 						<textarea
 							id="input"
 							spellcheck="false"
-							placeholder='貼上 JSON 或 Go struct...'
+							placeholder='Paste JSON or Go struct...'
 						></textarea>
 					</section>
 					<section class="panel">
@@ -102,18 +106,27 @@
 						<textarea
 							id="coderInput"
 							spellcheck="false"
-							placeholder="輸入任意文字..."
+							placeholder="Type or paste text..."
 						></textarea>
 					</section>
-					<section class="panel">
-						<div class="panel-header">
-							<div>
-								<h2 id="coderResultHeading">Encodings</h2>
-								<p id="coderResultHint">Base32 / Base64 / Base85 / Base91 / Hex</p>
+						<section class="panel">
+							<div class="panel-header">
+								<div>
+									<h2 id="coderResultHeading">Encodings</h2>
+									<p id="coderResultHint">Base32 / Base64 / Base85 / Base91 / Hex</p>
+								</div>
+								<div class="panel-actions hidden" id="coderResultActions">
+									<button
+										class="ghost-btn hidden"
+										id="hashToggleCase"
+										data-upper="false"
+									>
+										Toggle Case
+									</button>
+								</div>
 							</div>
-						</div>
 						<div id="coderResults" class="coder-results">
-							<div class="muted">輸入內容以查看結果</div>
+							<div class="muted">Enter content to see results</div>
 						</div>
 					</section>
 				</div>
@@ -123,12 +136,12 @@
 						<div class="panel-header">
 							<div>
 								<h2 id="pairInputLabel">Encode</h2>
-								<p id="pairInputHint">輸入要編碼的內容</p>
+								<p id="pairInputHint">Enter text to encode</p>
 							</div>
 							<div class="pair-controls">
 								<div id="jwtControls" class="jwt-controls hidden">
 									<label>
-										<span>Algorithm</span>
+											<span>Algorithm</span>
 										<select id="jwtAlgorithm">
 											<option value="HS256">HS256</option>
 											<option value="HS384">HS384</option>
@@ -140,7 +153,7 @@
 										<input
 											type="password"
 											id="jwtSecret"
-											placeholder="輸入 secret"
+											placeholder="Enter secret"
 											spellcheck="false"
 										/>
 									</label>
@@ -150,20 +163,20 @@
 						<textarea
 							id="pairInput"
 							spellcheck="false"
-							placeholder="貼上要編碼的內容"
+							placeholder="Enter content to encode"
 						></textarea>
 					</section>
 					<section class="panel">
 						<div class="panel-header">
 							<div>
 								<h2 id="pairOutputLabel">Decode</h2>
-								<p id="pairOutputHint">貼上要解碼的內容</p>
+								<p id="pairOutputHint">Paste encoded text to decode</p>
 							</div>
 						</div>
 						<textarea
 							id="pairOutput"
 							spellcheck="false"
-							placeholder="貼上要解碼的內容"
+							placeholder="Paste content to decode"
 						></textarea>
 						<pre id="pairOutputMeta" class="pair-meta hidden"></pre>
 					</section>
@@ -174,7 +187,7 @@
 						<div class="panel-header">
 							<div>
 								<h2>Number Converter</h2>
-								<p>在任一欄位輸入數值，其餘進位會同步更新</p>
+								<p>Update any field to sync all bases</p>
 							</div>
 						</div>
 						<div class="number-grid">
@@ -202,51 +215,84 @@
 					<section class="panel">
 						<div class="panel-header">
 							<div>
-								<h2>IPv4 工具</h2>
-								<p>輸入 IP、CIDR，或 IP + 子網路遮罩</p>
+								<h2>IPv4 Tools</h2>
+								<p>Enter an IP, CIDR, or IP with subnet mask</p>
 							</div>
 						</div>
 						<textarea
 							id="ipv4Input"
 							spellcheck="false"
-							placeholder="例如：192.168.0.1、192.168.0.0/24、10.0.0.0/255.255.0.0"
+							placeholder="Examples: 192.168.0.1, 192.168.0.0/24, 10.0.0.0/255.255.0.0"
 						></textarea>
 					</section>
 					<section class="panel">
 						<div class="panel-header">
 							<div>
-								<h2>結果</h2>
-								<p>顯示範圍、總數與進位表示</p>
+								<h2>Results</h2>
+								<p>Shows range, totals, and alternate formats</p>
 							</div>
 						</div>
 						<div id="ipv4Results" class="ipv4-results">
-							<div class="muted">輸入 IPv4 或 CIDR 以顯示資訊</div>
+							<div class="muted">Enter an IPv4 or CIDR block to see details</div>
 						</div>
 					</section>
 				</div>
 
-				<div id="generatorWorkspace" class="tool-view hidden">
+				<div id="uuidWorkspace" class="tool-view hidden">
 					<section class="panel">
 						<div class="panel-header">
 							<div>
-								<h2>UUID Generator</h2>
-								<p>一次產生 UUID v1 ~ v5</p>
+								<h2>UUID</h2>
+								<p>Generate UUID v1 ~ v8, GUID, and ULID</p>
 							</div>
 							<div class="generator-actions">
 								<button id="uuidToggleCase" data-upper="false">
-									切換大小寫
+									Toggle Case
 								</button>
-								<button id="uuidRegenerate">重新產生</button>
+								<button id="uuidRegenerate">Regenerate</button>
 							</div>
 						</div>
 						<div id="uuidList" class="uuid-list"></div>
 					</section>
 				</div>
 
+				<div id="userAgentWorkspace" class="tool-view hidden">
+					<section class="panel">
+						<div class="panel-header">
+							<div>
+								<h2>User-Agent</h2>
+								<p>Pick a browser and OS to fetch realistic strings</p>
+							</div>
+							<div class="generator-actions">
+								<select id="uaBrowser">
+									<option value="">All Browsers</option>
+									<option value="Chrome">Chrome</option>
+									<option value="Firefox">Firefox</option>
+									<option value="Edge">Edge</option>
+									<option value="Safari">Safari</option>
+									<option value="Brave">Brave</option>
+								</select>
+								<select id="uaOS">
+									<option value="">All Platforms</option>
+									<option value="Windows">Windows</option>
+									<option value="macOS">macOS</option>
+									<option value="Linux">Linux</option>
+									<option value="Android">Android</option>
+									<option value="iOS">iOS</option>
+									<option value="iPadOS">iPadOS</option>
+								</select>
+							</div>
+						</div>
+						<div id="uaResults" class="ua-results">
+							<div class="muted">Choose filters to generate user agents</div>
+						</div>
+					</section>
+				</div>
+
 				<footer>
-					<div id="status">載入 WebAssembly...</div>
+					<div id="status">Loading WebAssembly...</div>
 					<div class="hotkeys">
-						⌘/Ctrl + L 清除 · ⌘/Ctrl + Enter 立即執行
+						⌘/Ctrl + L Clear · ⌘/Ctrl + Enter Run
 					</div>
 				</footer>
 			</div>

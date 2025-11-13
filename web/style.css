@@ -212,7 +212,8 @@ button#swap {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-#generatorWorkspace {
+#uuidWorkspace,
+#userAgentWorkspace {
   grid-template-columns: 1fr;
 }
 
@@ -362,6 +363,10 @@ button#swap {
   gap: 6px;
 }
 
+.panel-actions.hidden {
+  display: none;
+}
+
 .panel-actions .ghost-btn {
   background: rgba(255, 255, 255, 0.08);
   color: var(--fg);
@@ -445,6 +450,14 @@ textarea:focus {
   gap: 6px;
 }
 
+.coder-entry.click-copy {
+  cursor: pointer;
+}
+
+.coder-entry.click-copy textarea {
+  pointer-events: none;
+}
+
 .coder-entry-meta {
   display: flex;
   justify-content: space-between;
@@ -467,6 +480,13 @@ textarea:focus {
 
 .coder-entry-meta button:hover {
   background: rgba(255, 255, 255, 0.14);
+}
+
+.copy-hint {
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--muted);
 }
 
 .coder-entry textarea {
@@ -572,6 +592,48 @@ body.tool-generator .converter-only {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.ua-results {
+  padding: 16px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ua-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.ua-card code {
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.ua-meta {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ua-meta span {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+}
+
+.ua-meta span strong {
+  font-weight: 600;
+  color: var(--fg);
 }
 
 @media (max-width: 960px) {

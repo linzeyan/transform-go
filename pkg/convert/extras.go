@@ -165,17 +165,17 @@ func ipv4Range(input string) (IPv4Result, error) {
 	normalized := strings.NewReplacer(" ", "", "->", "-", "—", "-", "–", "-").Replace(input)
 	parts := strings.Split(normalized, "-")
 	if len(parts) != 2 {
-		return res, errors.New("range 必須是 start-end 格式")
+		return res, errors.New("range must be in start-end format")
 	}
 	startIP := parseIPv4(parts[0])
 	endIP := parseIPv4(parts[1])
 	if startIP == nil || endIP == nil {
-		return res, errors.New("無效的 IPv4 範圍")
+		return res, errors.New("invalid IPv4 range")
 	}
 	start := ipToUint32(startIP)
 	end := ipToUint32(endIP)
 	if start > end {
-		return res, errors.New("起始 IP 需要小於等於結束 IP")
+		return res, errors.New("start IP must be less than or equal to end IP")
 	}
 	res.RangeStart = startIP.String()
 	res.RangeEnd = endIP.String()
