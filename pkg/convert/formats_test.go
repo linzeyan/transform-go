@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -106,4 +107,32 @@ func Test_GoStructBackToFormats(t *testing.T) {
 	schemaOut, err := GoStructToSchema(sampleGoStruct)
 	require.NoError(t, err)
 	require.Contains(t, schemaOut, "properties")
+}
+
+func Test_JSONXMLConversions(t *testing.T) {
+	xmlOut, err := JSONToXML(sampleJSON)
+	require.NoError(t, err)
+	require.Contains(t, xmlOut, "<root>")
+	jsonBack, err := XMLToJSON(xmlOut)
+	require.NoError(t, err)
+	require.Contains(t, jsonBack, `"name"`)
+}
+
+func TestJSONXMLRoundTrip(t *testing.T) {
+	xmlOut, err := JSONToXML(sampleJSON)
+	require.NoError(t, err)
+	require.Contains(t, xmlOut, "<root>")
+	require.Contains(t, xmlOut, "<name>")
+
+	jsonBack, err := XMLToJSON(xmlOut)
+	require.NoError(t, err)
+	require.Contains(t, jsonBack, `"name"`)
+	require.Contains(t, jsonBack, `"age"`)
+}
+
+func TestXMLToJSONStructure(t *testing.T) {
+	xmlSrc := `<root><items><item>1</item><item>2</item></items></root>`
+	jsonOut, err := XMLToJSON(xmlSrc)
+	require.NoError(t, err)
+	require.True(t, strings.Contains(jsonOut, `"item"`))
 }

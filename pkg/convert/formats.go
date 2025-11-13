@@ -3,7 +3,10 @@ package convert
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
+	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -64,6 +67,33 @@ func TOMLToJSON(input string) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func JSONToXML(input string) (string, error) {
+	var data any
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		return "", err
+	}
+	builder := &strings.Builder{}
+	builder.WriteString(xml.Header)
+	buildXML(builder, "root", normalizeJSONNumbers(data), 0)
+	return builder.String(), nil
+}
+
+func XMLToJSON(input string) (string, error) {
+	root, err := parseXML(input)
+	if err != nil {
+		return "", err
+	}
+	value := elementToValue(root)
+	buf := &bytes.Buffer{}
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(value); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(buf.String()), nil
 }
 
 func JSONToSchema(input string) (string, error) {
@@ -141,6 +171,107 @@ func GoStructToSchema(src string) (string, error) {
 		return "", err
 	}
 	return JSONToSchema(jsonStr)
+}
+
+func buildXML(builder *strings.Builder, name string, value any, indent int) {
+	indentation := strings.Repeat("  ", indent)
+	switch val := value.(type) {
+	case map[string]any:
+		builder.WriteString(fmt.Sprintf("%s<%s>\n", indentation, name))
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			buildXML(builder, k, val[k], indent+1)
+		}
+		builder.WriteString(fmt.Sprintf("%s</%s>\n", indentation, name))
+	case []any:
+		for _, item := range val {
+			buildXML(builder, name, item, indent)
+		}
+	default:
+		text := fmt.Sprint(val)
+		builder.WriteString(fmt.Sprintf("%s<%s>%s</%s>\n", indentation, name, xmlEscape(text), name))
+	}
+}
+
+func xmlEscape(s string) string {
+	var buf bytes.Buffer
+	_ = xml.EscapeText(&buf, []byte(s))
+	return buf.String()
+}
+
+type xmlElement struct {
+	Name     string
+	Value    string
+	Children []*xmlElement
+}
+
+func parseXML(src string) (*xmlElement, error) {
+	decoder := xml.NewDecoder(strings.NewReader(src))
+	var stack []*xmlElement
+	var root *xmlElement
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			node := &xmlElement{Name: t.Name.Local}
+			stack = append(stack, node)
+		case xml.CharData:
+			if len(stack) == 0 {
+				continue
+			}
+			text := strings.TrimSpace(string(t))
+			if text != "" {
+				stack[len(stack)-1].Value += text
+			}
+		case xml.EndElement:
+			if len(stack) == 0 {
+				continue
+			}
+			node := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if len(stack) == 0 {
+				root = node
+			} else {
+				parent := stack[len(stack)-1]
+				parent.Children = append(parent.Children, node)
+			}
+		}
+	}
+	if root == nil {
+		return nil, errors.New("invalid XML input")
+	}
+	return root, nil
+}
+
+func elementToValue(el *xmlElement) any {
+	if len(el.Children) == 0 {
+		return el.Value
+	}
+	result := map[string]any{}
+	for _, child := range el.Children {
+		val := elementToValue(child)
+		if existing, ok := result[child.Name]; ok {
+			switch arr := existing.(type) {
+			case []any:
+				result[child.Name] = append(arr, val)
+			default:
+				result[child.Name] = []any{arr, val}
+			}
+		} else {
+			result[child.Name] = val
+		}
+	}
+	return result
 }
 
 func decodeJSONValue(input string) (any, error) {

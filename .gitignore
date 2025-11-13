@@ -9,6 +9,7 @@
 
 # Go cache / binaries
 .gocache/
+.cache/
 bin/
 
 # Editors / OS
@@ -21,4 +22,5 @@ vendor/
 
 # Generated assets
 web/app.wasm
+app.wasm
 transform-go

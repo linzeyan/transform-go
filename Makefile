@@ -5,7 +5,10 @@ all: test wasm build
 .PHONY: all
 
 wasm:
-	GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o web/app.wasm ./wasm
+	GOOS=js GOARCH=wasm go build -ldflags="-s -w" -trimpath -o web/app.wasm ./wasm
+# 	wasm-opt web/app.wasm -Oz --enable-bulk-memory -o web/app.wasm
+# 	wasm-opt web/app.wasm --enable-bulk-memory --metrics
+
 .PHONY: wasm
 
 build:
@@ -19,7 +22,6 @@ test:
 benchmark:
 	go test -bench=. -benchmem -count=2 ./...
 .PHONY: benchmark
-
 
 fuzz:
 	@for f in $(FUZZ_FUNCS); do \

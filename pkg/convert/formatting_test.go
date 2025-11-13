@@ -38,6 +38,18 @@ func Test_FormatContent_GraphQL(t *testing.T) {
 	require.Contains(t, formatted, "name: String")
 }
 
+func Test_FormatContent_XML(t *testing.T) {
+	const src = `<root><name>Ricky</name><age>27</age></root>`
+	pretty, err := FormatContent("XML", src, false)
+	require.NoError(t, err)
+	require.Contains(t, pretty, "\n")
+
+	minified, err := FormatContent("XML", pretty, true)
+	require.NoError(t, err)
+	require.NotContains(t, minified, "\n")
+	require.Contains(t, minified, "<root>")
+}
+
 func Test_ConvertFormats_SpecialCases(t *testing.T) {
 	out, err := ConvertFormats("Go Struct", "GraphQL Schema", sampleGoStruct)
 	require.NoError(t, err)

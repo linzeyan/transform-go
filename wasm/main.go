@@ -50,6 +50,9 @@ func registerBindings(target js.Value) {
 
 	target.Set("transformFormat", js.FuncOf(transformFormat))
 	target.Set("formatContent", js.FuncOf(formatContent))
+	target.Set("encodeContent", js.FuncOf(encodeContent))
+	target.Set("decodeContent", js.FuncOf(decodeContent))
+	target.Set("hashContent", js.FuncOf(hashContent))
 }
 
 var boundHandlers []js.Func
@@ -95,4 +98,42 @@ func formatContent(_ js.Value, args []js.Value) any {
 		return map[string]any{"error": err.Error()}
 	}
 	return map[string]any{"result": out}
+}
+
+func encodeContent(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	out, err := convert.EncodeContent(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": stringMapToAny(out)}
+}
+
+func decodeContent(_ js.Value, args []js.Value) any {
+	if len(args) < 2 {
+		return map[string]any{"error": "encoding and input required"}
+	}
+	out, err := convert.DecodeContent(args[0].String(), args[1].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": out}
+}
+
+func hashContent(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	out := convert.HashContent(args[0].String())
+	return map[string]any{"result": stringMapToAny(out)}
+}
+
+func stringMapToAny(in map[string]string) map[string]any {
+	result := make(map[string]any, len(in))
+	for k, v := range in {
+		result[k] = v
+	}
+	return result
 }

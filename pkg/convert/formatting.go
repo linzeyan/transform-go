@@ -3,8 +3,10 @@ package convert
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"go/format"
+	"io"
 	"strings"
 )
 
@@ -13,6 +15,7 @@ const (
 	formatGoStruct = "Go Struct"
 	formatYAML     = "YAML"
 	formatTOML     = "TOML"
+	formatXML      = "XML"
 	formatSchema   = "JSON Schema"
 	formatGraphQL  = "GraphQL Schema"
 	formatProtobuf = "Protobuf"
@@ -39,6 +42,10 @@ var adapters = map[string]formatAdapter{
 	formatTOML: {
 		ToJSON:   TOMLToJSON,
 		FromJSON: JSONToTOML,
+	},
+	formatXML: {
+		ToJSON:   XMLToJSON,
+		FromJSON: JSONToXML,
 	},
 	formatSchema: {
 		ToJSON:   SchemaToJSON,
@@ -102,6 +109,15 @@ func FormatContent(formatName, input string, minify bool) (string, error) {
 		return formatGoSource(input)
 	case formatJSON:
 		return normalizeJSONOutput(input, minify)
+	case formatXML:
+		if minify {
+			return compactXML(input)
+		}
+		jsonStr, err := XMLToJSON(input)
+		if err != nil {
+			return "", err
+		}
+		return JSONToXML(jsonStr)
 	}
 	adapter, ok := adapters[formatName]
 	if !ok {
@@ -164,4 +180,37 @@ func formatGoSource(src string) (string, error) {
 		}
 	}
 	return out, nil
+}
+
+func compactXML(src string) (string, error) {
+	decoder := xml.NewDecoder(strings.NewReader(src))
+	var buf bytes.Buffer
+	encoder := xml.NewEncoder(&buf)
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return "", err
+		}
+		switch t := tok.(type) {
+		case xml.CharData:
+			text := strings.TrimSpace(string(t))
+			if text == "" {
+				continue
+			}
+			if err := encoder.EncodeToken(xml.CharData([]byte(text))); err != nil {
+				return "", err
+			}
+		default:
+			if err := encoder.EncodeToken(tok); err != nil {
+				return "", err
+			}
+		}
+	}
+	if err := encoder.Flush(); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
