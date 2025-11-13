@@ -36,13 +36,13 @@ const coderTools = [
 	{
 		id: "coder-encode",
 		mode: "encode",
-		label: "Encode",
+		label: "Base Encoders",
 		description: "Base32/64/85/91 encodings.",
 	},
 	{
 		id: "coder-decode",
 		mode: "decode",
-		label: "Decode",
+		label: "Base Decoders",
 		description: "Decode BaseX back to plain text.",
 	},
 	{
@@ -50,6 +50,18 @@ const coderTools = [
 		mode: "hash",
 		label: "Hash",
 		description: "Hashes from Go's stdlib.",
+	},
+	{
+		id: "coder-url",
+		pair: "url",
+		label: "URL Encode/Decode",
+		description: "Bidirectional URL percent-encoding helper.",
+	},
+	{
+		id: "coder-jwt",
+		pair: "jwt",
+		label: "JWT Encode/Decode",
+		description: "Sign JSON payloads and inspect JWT tokens.",
 	},
 ];
 
@@ -61,6 +73,21 @@ const toolGroups = [
 				id: "format",
 				label: "Format Converter",
 				description: "Convert between structured data formats.",
+			},
+			{
+				id: "converter-html-md",
+				label: "HTML ↔ Markdown",
+				description: "Markdown 及 HTML 互相轉換。",
+			},
+			{
+				id: "converter-number-bases",
+				label: "Number Bases",
+				description: "Binary / Octal / Decimal / Hex 同步轉換。",
+			},
+			{
+				id: "converter-ipv4",
+				label: "IPv4 工具",
+				description: "CIDR、Range、等值表示。",
 			},
 		],
 	},
@@ -75,10 +102,22 @@ const toolGroups = [
 ];
 
 const coderToolModes = {};
+const coderMainTools = new Set();
+const pairToolSet = new Set();
 coderTools.forEach((tool) => {
-	coderToolModes[tool.id] = tool.mode;
+	if (tool.mode) {
+		coderToolModes[tool.id] = tool.mode;
+		coderMainTools.add(tool.id);
+	}
+	if (tool.pair) {
+		pairToolSet.add(tool.id);
+	}
 });
-const coderToolSet = new Set(Object.keys(coderToolModes));
+const converterPairTools = ["converter-html-md"];
+converterPairTools.forEach((id) => pairToolSet.add(id));
+const coderToolSet = new Set([...coderMainTools, ...pairToolSet]);
+const numberToolSet = new Set(["converter-number-bases"]);
+const ipv4ToolSet = new Set(["converter-ipv4"]);
 const coderModes = ["encode", "decode", "hash"];
 const coderModeTitles = {
 	encode: "Encode",
@@ -89,6 +128,22 @@ let coderMode = "encode";
 
 function isCoderToolId(toolId) {
 	return coderToolSet.has(toolId);
+}
+
+function isCoderMainTool(toolId) {
+	return coderMainTools.has(toolId);
+}
+
+function isPairToolId(toolId) {
+	return pairToolSet.has(toolId);
+}
+
+function isNumberTool(toolId) {
+	return numberToolSet.has(toolId);
+}
+
+function isIPv4Tool(toolId) {
+	return ipv4ToolSet.has(toolId);
 }
 
 const encodingGroups = [
@@ -206,6 +261,36 @@ const coderPlaceholders = {
 	hash: "輸入任意文字以產生 hash",
 };
 
+const pairToolConfigs = {
+	"coder-url": {
+		type: "url",
+		inputLabel: "URL Encode",
+		inputHint: "輸入原始文字，將自動轉成 URL encoded。",
+		inputPlaceholder: "https://example.com/search?q=台北 101",
+		outputLabel: "URL Decode",
+		outputHint: "貼上已編碼的內容，自動解碼。",
+		outputPlaceholder: "https%3A%2F%2Fexample.com%2Fsearch%3Fq%3D%E5%8F%B0%E5%8C%97101",
+	},
+	"coder-jwt": {
+		type: "jwt",
+		inputLabel: "JWT Payload (JSON)",
+		inputHint: "輸入 payload JSON，選擇演算法後會自動生成 token。",
+		inputPlaceholder: '{\n  "sub": "1234567890",\n  "name": "John Doe"\n}',
+		outputLabel: "JWT Token",
+		outputHint: "貼上 JWT token 以解碼 Payload。",
+		outputPlaceholder: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9....",
+	},
+	"converter-html-md": {
+		type: "markdown",
+		inputLabel: "Markdown → HTML",
+		inputHint: "輸入 Markdown 內容，右側為 HTML。",
+		inputPlaceholder: "# Title\n\n- item 1\n- item 2",
+		outputLabel: "HTML → Markdown",
+		outputHint: "貼上 HTML 內容可轉回 Markdown。",
+		outputPlaceholder: "<h1>Title</h1>",
+	},
+};
+
 const toolInfo = {};
 toolGroups.forEach((group) => {
 	group.tools.forEach((tool) => {
@@ -222,6 +307,10 @@ let wasmReady = false;
 let debounceTimer = null;
 let coderTimer = null;
 let wasmInitPromise = null;
+let currentPairTool = null;
+let pairSyncing = false;
+let pairLastSource = "input";
+let numberSyncing = false;
 
 document.addEventListener("DOMContentLoaded", () => {
 	cacheElements();
@@ -266,6 +355,25 @@ function cacheElements() {
 	elements.coderResultHeading = document.getElementById("coderResultHeading");
 	elements.coderResultHint = document.getElementById("coderResultHint");
 	elements.coderModeHint = document.getElementById("coderModeHint");
+	elements.pairWorkspace = document.getElementById("pairWorkspace");
+	elements.pairInput = document.getElementById("pairInput");
+	elements.pairOutput = document.getElementById("pairOutput");
+	elements.pairInputLabel = document.getElementById("pairInputLabel");
+	elements.pairOutputLabel = document.getElementById("pairOutputLabel");
+	elements.pairInputHint = document.getElementById("pairInputHint");
+	elements.pairOutputHint = document.getElementById("pairOutputHint");
+	elements.jwtControls = document.getElementById("jwtControls");
+	elements.jwtAlgorithm = document.getElementById("jwtAlgorithm");
+	elements.jwtSecret = document.getElementById("jwtSecret");
+	elements.pairOutputMeta = document.getElementById("pairOutputMeta");
+	elements.numberWorkspace = document.getElementById("numberWorkspace");
+	elements.numberBinary = document.getElementById("numberBinary");
+	elements.numberOctal = document.getElementById("numberOctal");
+	elements.numberDecimal = document.getElementById("numberDecimal");
+	elements.numberHex = document.getElementById("numberHex");
+	elements.ipv4Workspace = document.getElementById("ipv4Workspace");
+	elements.ipv4Input = document.getElementById("ipv4Input");
+	elements.ipv4Results = document.getElementById("ipv4Results");
 }
 
 function initCoderControls() {
@@ -384,6 +492,57 @@ function bindEvents() {
 			() => setStatus("無法存取剪貼簿", true),
 		);
 	});
+	if (elements.pairInput) {
+		elements.pairInput.addEventListener("input", () =>
+			handlePairInput("input"),
+		);
+	}
+	if (elements.pairOutput) {
+		elements.pairOutput.addEventListener("input", () =>
+			handlePairInput("output"),
+		);
+	}
+	if (elements.jwtAlgorithm) {
+		elements.jwtAlgorithm.addEventListener("change", () => {
+			if (currentPairTool === "coder-jwt") {
+				runPairConversion("input");
+			}
+		});
+	}
+	if (elements.jwtSecret) {
+		elements.jwtSecret.addEventListener("input", () => {
+			if (
+				currentPairTool === "coder-jwt" &&
+				pairLastSource === "input" &&
+				elements.pairInput.value.trim()
+			) {
+				runPairConversion("input");
+			}
+		});
+	}
+	if (elements.numberBinary) {
+		elements.numberBinary.addEventListener("input", () =>
+			handleNumberInput("binary"),
+		);
+	}
+	if (elements.numberOctal) {
+		elements.numberOctal.addEventListener("input", () =>
+			handleNumberInput("octal"),
+		);
+	}
+	if (elements.numberDecimal) {
+		elements.numberDecimal.addEventListener("input", () =>
+			handleNumberInput("decimal"),
+		);
+	}
+	if (elements.numberHex) {
+		elements.numberHex.addEventListener("input", () =>
+			handleNumberInput("hex"),
+		);
+	}
+	if (elements.ipv4Input) {
+		elements.ipv4Input.addEventListener("input", () => runIPv4Conversion());
+	}
 	window.addEventListener("keydown", handleHotkeys);
 }
 
@@ -547,6 +706,375 @@ function renderEntryRow(entry) {
   `;
 }
 
+function activatePairTool(toolId) {
+	currentPairTool = toolId;
+	pairLastSource = "input";
+	const config = pairToolConfigs[toolId];
+	if (!config || !elements.pairWorkspace) return;
+	if (elements.pairInputLabel) {
+		elements.pairInputLabel.textContent = config.inputLabel || "Encode";
+	}
+	if (elements.pairOutputLabel) {
+		elements.pairOutputLabel.textContent = config.outputLabel || "Decode";
+	}
+	if (elements.pairInputHint) {
+		elements.pairInputHint.textContent = config.inputHint || "";
+	}
+	if (elements.pairOutputHint) {
+		elements.pairOutputHint.textContent = config.outputHint || "";
+	}
+	if (elements.pairInput) {
+		elements.pairInput.placeholder = config.inputPlaceholder || "";
+		elements.pairInput.value = "";
+	}
+	if (elements.pairOutput) {
+		elements.pairOutput.placeholder = config.outputPlaceholder || "";
+		elements.pairOutput.value = "";
+	}
+	const showJWT = config.type === "jwt";
+	if (elements.jwtControls) {
+		elements.jwtControls.classList.toggle("hidden", !showJWT);
+	}
+	if (!showJWT) {
+		updatePairMeta(null);
+		if (elements.jwtSecret) {
+			elements.jwtSecret.value = "";
+		}
+	} else if (elements.jwtAlgorithm && !elements.jwtAlgorithm.value) {
+		elements.jwtAlgorithm.value = "HS256";
+	}
+	updatePairMeta(null);
+	setStatus("就緒", false, "ready");
+}
+
+function handlePairInput(source) {
+	if (!isPairToolId(currentTool) || pairSyncing) return;
+	runPairConversion(source);
+}
+
+function runPairConversion(source) {
+	if (!isPairToolId(currentTool)) return;
+	const config = pairToolConfigs[currentTool];
+	if (!config) return;
+	if (!wasmReady) {
+		setStatus("等待 WebAssembly 載入...", true);
+		return;
+	}
+	pairLastSource = source;
+	const inputValue = elements.pairInput ? elements.pairInput.value : "";
+	const outputValue = elements.pairOutput ? elements.pairOutput.value : "";
+	if (config.type === "url") {
+		if (source === "input") {
+			if (!inputValue) {
+				setPairField(elements.pairOutput, "");
+				setStatus("已清除");
+				return;
+			}
+			const response = window.urlEncode(inputValue);
+			if (!response || response.error) {
+				setStatus(response?.error || "URL encode 失敗", true);
+				return;
+			}
+			setPairField(elements.pairOutput, response.result || "");
+			setStatus("完成", false, "ready");
+			return;
+		}
+		if (!outputValue) {
+			setPairField(elements.pairInput, "");
+			setStatus("已清除");
+			return;
+		}
+		const response = window.urlDecode(outputValue);
+		if (!response || response.error) {
+			setStatus(response?.error || "URL decode 失敗", true);
+			return;
+		}
+		setPairField(elements.pairInput, response.result || "");
+		setStatus("完成", false, "ready");
+		return;
+	}
+	if (config.type === "markdown") {
+		if (source === "input") {
+			if (!inputValue.trim()) {
+				setPairField(elements.pairOutput, "");
+				setStatus("已清除");
+				return;
+			}
+			let response;
+			try {
+				response = window.markdownToHTML(inputValue);
+			} catch (err) {
+				setStatus(err.message, true);
+				return;
+			}
+			if (!response || response.error) {
+				setStatus(response?.error || "Markdown 轉換失敗", true);
+				return;
+			}
+			setPairField(elements.pairOutput, response.result || "");
+			setStatus("完成", false, "ready");
+			return;
+		}
+		if (!outputValue.trim()) {
+			setPairField(elements.pairInput, "");
+			setStatus("已清除");
+			return;
+		}
+		let response;
+		try {
+			response = window.htmlToMarkdown(outputValue);
+		} catch (err) {
+			setStatus(err.message, true);
+			return;
+		}
+		if (!response || response.error) {
+			setStatus(response?.error || "HTML 轉換失敗", true);
+			return;
+		}
+		setPairField(elements.pairInput, response.result || "");
+		setStatus("完成", false, "ready");
+		return;
+	}
+	if (config.type === "jwt") {
+		if (source === "input") {
+			if (!inputValue.trim()) {
+				setPairField(elements.pairOutput, "");
+				updatePairMeta(null);
+				setStatus("已清除");
+				return;
+			}
+			const secret = elements.jwtSecret ? elements.jwtSecret.value : "";
+			if (!secret.trim()) {
+				setStatus("請輸入 secret", true);
+				return;
+			}
+			const algorithm = elements.jwtAlgorithm
+				? elements.jwtAlgorithm.value
+				: "HS256";
+			let response;
+			try {
+				response = window.jwtEncode(inputValue, secret, algorithm);
+			} catch (err) {
+				setStatus(err.message, true);
+				return;
+			}
+			if (!response || response.error) {
+				setStatus(response?.error || "JWT encode 失敗", true);
+				return;
+			}
+			const token =
+				(response.result && response.result.token) || response.result || "";
+			setPairField(elements.pairOutput, token);
+			updatePairMeta(null);
+			setStatus("完成", false, "ready");
+			return;
+		}
+		if (!outputValue.trim()) {
+			setPairField(elements.pairInput, "");
+			updatePairMeta(null);
+			setStatus("已清除");
+			return;
+		}
+		let response;
+		try {
+			response = window.jwtDecode(outputValue);
+		} catch (err) {
+			setStatus(err.message, true);
+			return;
+		}
+		if (!response || response.error) {
+			setStatus(response?.error || "JWT decode 失敗", true);
+			return;
+		}
+		const info = response.result || {};
+		if (info.payload) {
+			setPairField(elements.pairInput, info.payload);
+		}
+		if (info.algorithm && elements.jwtAlgorithm) {
+			elements.jwtAlgorithm.value = info.algorithm;
+		}
+		updatePairMeta(info);
+		setStatus("完成", false, "ready");
+		return;
+	}
+}
+
+function setPairField(target, value) {
+	if (!target) return;
+	pairSyncing = true;
+	target.value = value || "";
+	pairSyncing = false;
+}
+
+function updatePairMeta(info) {
+	if (!elements.pairOutputMeta) return;
+	if (!info || currentPairTool !== "coder-jwt") {
+		elements.pairOutputMeta.classList.add("hidden");
+		elements.pairOutputMeta.textContent = "";
+		return;
+	}
+	const sections = [];
+	if (info.header) {
+		sections.push(`Header:\n${info.header}`);
+	}
+	if (info.signature) {
+		sections.push(`Signature:\n${info.signature}`);
+	}
+	elements.pairOutputMeta.textContent = sections.join("\n\n");
+	elements.pairOutputMeta.classList.toggle("hidden", sections.length === 0);
+}
+
+function activateNumberTool() {
+	numberSyncing = true;
+	if (elements.numberBinary) elements.numberBinary.value = "";
+	if (elements.numberOctal) elements.numberOctal.value = "";
+	if (elements.numberDecimal) elements.numberDecimal.value = "";
+	if (elements.numberHex) elements.numberHex.value = "";
+	numberSyncing = false;
+	setStatus("就緒", false, "ready");
+}
+
+function handleNumberInput(base) {
+	if (!isNumberTool(currentTool) || numberSyncing) return;
+	runNumberConversion(base);
+}
+
+function runNumberConversion(base) {
+	if (!wasmReady || !elements[`number${capitalize(base)}`]) {
+		setStatus("等待 WebAssembly 載入...", true);
+		return;
+	}
+	const value = elements[`number${capitalize(base)}`].value;
+	if (!value.trim()) {
+		numberSyncing = true;
+		["Binary", "Octal", "Decimal", "Hex"].forEach((key) => {
+			if (elements[`number${key}`]) elements[`number${key}`].value = "";
+		});
+		numberSyncing = false;
+		setStatus("已清除");
+		return;
+	}
+	let response;
+	try {
+		response = window.convertNumberBase(base, value);
+	} catch (err) {
+		setStatus(err.message, true);
+		return;
+	}
+	if (!response || response.error) {
+		setStatus(response?.error || "轉換失敗", true);
+		return;
+	}
+	const result = response.result || {};
+	numberSyncing = true;
+	if (elements.numberBinary && typeof result.binary === "string") {
+		elements.numberBinary.value = result.binary;
+	}
+	if (elements.numberOctal && typeof result.octal === "string") {
+		elements.numberOctal.value = result.octal;
+	}
+	if (elements.numberDecimal && typeof result.decimal === "string") {
+		elements.numberDecimal.value = result.decimal;
+	}
+	if (elements.numberHex && typeof result.hex === "string") {
+		elements.numberHex.value = result.hex;
+	}
+	numberSyncing = false;
+	setStatus("完成", false, "ready");
+}
+
+function activateIPv4Tool() {
+	if (elements.ipv4Results) {
+		elements.ipv4Results.innerHTML =
+			'<div class="muted">輸入 IPv4 或 CIDR 以顯示資訊</div>';
+	}
+	if (elements.ipv4Input) {
+		elements.ipv4Input.value = "";
+	}
+	setStatus("就緒", false, "ready");
+}
+
+function runIPv4Conversion() {
+	if (!isIPv4Tool(currentTool)) return;
+	if (!wasmReady) {
+		setStatus("等待 WebAssembly 載入...", true);
+		return;
+	}
+	const value = elements.ipv4Input ? elements.ipv4Input.value.trim() : "";
+	if (!value) {
+		if (elements.ipv4Results) {
+			elements.ipv4Results.innerHTML =
+				'<div class="muted">輸入 IPv4 或 CIDR 以顯示資訊</div>';
+		}
+		setStatus("已清除");
+		return;
+	}
+	let response;
+	try {
+		response = window.ipv4Info(value);
+	} catch (err) {
+		setStatus(err.message, true);
+		return;
+	}
+	if (!response || response.error) {
+		setStatus(response?.error || "解析失敗", true);
+		return;
+	}
+	renderIPv4Results(response.result || {});
+	setStatus("完成", false, "ready");
+}
+
+function renderIPv4Results(data) {
+	if (!elements.ipv4Results) return;
+	const stats = [];
+	if (data.standard) {
+		stats.push(renderIPv4Row("Standard", data.standard));
+	}
+	if (data.cidr) {
+		stats.push(renderIPv4Row("CIDR", data.cidr));
+	}
+	if (data.mask) {
+		stats.push(renderIPv4Row("Mask", data.mask));
+	}
+	if (data.rangeStart || data.rangeEnd) {
+		stats.push(
+			renderIPv4Row(
+				"Range",
+				`${data.rangeStart || "?"} → ${data.rangeEnd || "?"}`,
+			),
+		);
+	}
+	if (data.total) {
+		stats.push(renderIPv4Row("Total IPs", data.total));
+	}
+	if (data.threePart) {
+		stats.push(renderIPv4Row("3-part", data.threePart));
+	}
+	if (data.twoPart) {
+		stats.push(renderIPv4Row("2-part", data.twoPart));
+	}
+	if (data.integer) {
+		stats.push(renderIPv4Row("Integer", data.integer));
+	}
+	if (!stats.length) {
+		elements.ipv4Results.innerHTML =
+			'<div class="muted">無法解析輸入內容</div>';
+		return;
+	}
+	elements.ipv4Results.innerHTML = `<div class="ipv4-stats">${stats.join("")}</div>`;
+}
+
+function renderIPv4Row(label, value) {
+	const safeLabel = escapeHTML(label || "");
+	const safeValue = escapeHTML(value || "");
+	return `
+    <div class="stat">
+      <span>${safeLabel}</span>
+      <span>${safeValue}</span>
+    </div>
+  `;
+}
+
 function selectTool(toolId) {
 	if (!toolInfo[toolId]) return;
 	currentTool = toolId;
@@ -554,18 +1082,39 @@ function selectTool(toolId) {
 	elements.toolName.textContent = meta.label;
 	elements.toolDesc.textContent = meta.description || "";
 	const isFormat = toolId === "format";
-	const isCoder = isCoderToolId(toolId);
+	const isCoderMain = isCoderMainTool(toolId);
+	const isPair = isPairToolId(toolId);
+	const isNumber = isNumberTool(toolId);
+	const isIPv4 = isIPv4Tool(toolId);
+	if (!isPair) {
+		currentPairTool = null;
+		updatePairMeta(null);
+	}
 	document.body.classList.toggle("tool-format", isFormat);
-	document.body.classList.toggle("tool-coder", isCoder);
+	document.body.classList.toggle("tool-coder", isCoderMain);
+	document.body.classList.toggle("tool-pair", isPair);
+	document.body.classList.toggle("tool-number", isNumber);
+	document.body.classList.toggle("tool-ipv4", isIPv4);
 	elements.converterWorkspace.classList.toggle("hidden", !isFormat);
-	elements.coderWorkspace.classList.toggle("hidden", !isCoder);
+	if (elements.coderWorkspace) {
+		elements.coderWorkspace.classList.toggle("hidden", !isCoderMain);
+	}
+	if (elements.pairWorkspace) {
+		elements.pairWorkspace.classList.toggle("hidden", !isPair);
+	}
+	if (elements.numberWorkspace) {
+		elements.numberWorkspace.classList.toggle("hidden", !isNumber);
+	}
+	if (elements.ipv4Workspace) {
+		elements.ipv4Workspace.classList.toggle("hidden", !isIPv4);
+	}
 	updateToolButtons();
 	if (isFormat) {
 		ensureMode();
 		scheduleConvert(true);
 		return;
 	}
-	if (isCoder) {
+	if (isCoderMain) {
 		const nextMode = coderToolModes[toolId] || "encode";
 		const changed = coderMode !== nextMode;
 		coderMode = nextMode;
@@ -574,6 +1123,18 @@ function selectTool(toolId) {
 			renderCoderEmpty();
 		}
 		scheduleCoder(true);
+		return;
+	}
+	if (isPair) {
+		activatePairTool(toolId);
+	}
+	if (isNumber) {
+		activateNumberTool();
+		return;
+	}
+	if (isIPv4) {
+		activateIPv4Tool();
+		return;
 	}
 }
 
@@ -624,7 +1185,7 @@ function scheduleConvert(immediate = false) {
 }
 
 function scheduleCoder(immediate = false) {
-	if (!isCoderToolId(currentTool)) return;
+	if (!isCoderMainTool(currentTool)) return;
 	if (immediate) {
 		runCoder();
 		return;
@@ -671,7 +1232,7 @@ function convert() {
 }
 
 function runCoder() {
-	if (!isCoderToolId(currentTool)) return;
+	if (!isCoderMainTool(currentTool)) return;
 	if (!wasmReady) {
 		setStatus("等待 WebAssembly 載入...", true);
 		return;
@@ -753,7 +1314,33 @@ function copyOutput() {
 }
 
 function clearAll() {
-	if (isCoderToolId(currentTool)) {
+	if (isNumberTool(currentTool)) {
+		numberSyncing = true;
+		if (elements.numberBinary) elements.numberBinary.value = "";
+		if (elements.numberOctal) elements.numberOctal.value = "";
+		if (elements.numberDecimal) elements.numberDecimal.value = "";
+		if (elements.numberHex) elements.numberHex.value = "";
+		numberSyncing = false;
+		setStatus("已清除");
+		return;
+	}
+	if (isIPv4Tool(currentTool)) {
+		if (elements.ipv4Input) elements.ipv4Input.value = "";
+		if (elements.ipv4Results) {
+			elements.ipv4Results.innerHTML =
+				'<div class="muted">輸入 IPv4 或 CIDR 以顯示資訊</div>';
+		}
+		setStatus("已清除");
+		return;
+	}
+	if (isPairToolId(currentTool)) {
+		if (elements.pairInput) elements.pairInput.value = "";
+		if (elements.pairOutput) elements.pairOutput.value = "";
+		updatePairMeta(null);
+		setStatus("已清除");
+		return;
+	}
+	if (isCoderMainTool(currentTool)) {
 		elements.coderInput.value = "";
 		renderCoderEmpty();
 		setStatus("已清除");
@@ -775,8 +1362,10 @@ function handleHotkeys(e) {
 		e.preventDefault();
 		if (currentTool === "format") {
 			scheduleConvert(true);
-		} else if (isCoderToolId(currentTool)) {
+		} else if (isCoderMainTool(currentTool)) {
 			scheduleCoder(true);
+		} else if (isPairToolId(currentTool)) {
+			runPairConversion("input");
 		}
 	}
 }
@@ -833,6 +1422,11 @@ function escapeAttr(input) {
 	return escapeHTML(input).replace(/"/g, "&quot;");
 }
 
+function capitalize(text) {
+	if (!text) return "";
+	return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 async function loadWasm() {
 	setStatus("載入 WebAssembly...");
 	try {
@@ -845,8 +1439,21 @@ async function loadWasm() {
 		if (currentTool === "format" && elements.input.value.trim()) {
 			scheduleConvert(true);
 		}
-		if (isCoderToolId(currentTool)) {
+		if (isCoderMainTool(currentTool) && elements.coderInput.value.trim()) {
 			scheduleCoder(true);
+		}
+		if (
+			isPairToolId(currentTool) &&
+			((elements.pairInput && elements.pairInput.value.trim()) ||
+				(elements.pairOutput && elements.pairOutput.value.trim()))
+		) {
+			runPairConversion(pairLastSource);
+		}
+		if (isNumberTool(currentTool)) {
+			runNumberConversion("decimal");
+		}
+		if (isIPv4Tool(currentTool) && elements.ipv4Input?.value.trim()) {
+			runIPv4Conversion();
 		}
 	} catch (err) {
 		console.error(err);

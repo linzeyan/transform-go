@@ -1,6 +1,8 @@
 package convert
 
 import (
+	"bytes"
+	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -9,6 +11,8 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"hash/adler32"
@@ -16,6 +20,7 @@ import (
 	"hash/crc64"
 	"hash/fnv"
 	"io"
+	"net/url"
 	"strings"
 )
 
@@ -267,4 +272,118 @@ func digestHash(h hash.Hash, data []byte) string {
 		_, _ = h.Write(data)
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func URLEncode(input string) string {
+	return url.QueryEscape(input)
+}
+
+func URLDecode(input string) (string, error) {
+	return url.QueryUnescape(input)
+}
+
+type JWTParts struct {
+	Header    string
+	Payload   string
+	Signature string
+	Algorithm string
+}
+
+func JWTEncode(payloadInput, secret, algorithm string) (string, error) {
+	if strings.TrimSpace(secret) == "" {
+		return "", errors.New("secret is required")
+	}
+	if algorithm == "" {
+		algorithm = "HS256"
+	}
+	payloadBytes, err := compactJSON(payloadInput)
+	if err != nil {
+		return "", fmt.Errorf("payload must be valid JSON: %w", err)
+	}
+	header := map[string]string{
+		"typ": "JWT",
+		"alg": algorithm,
+	}
+	headerBytes, err := json.Marshal(header)
+	if err != nil {
+		return "", err
+	}
+	headerEncoded := base64.RawURLEncoding.EncodeToString(headerBytes)
+	payloadEncoded := base64.RawURLEncoding.EncodeToString(payloadBytes)
+	signingInput := headerEncoded + "." + payloadEncoded
+	signature, err := signJWT(signingInput, secret, algorithm)
+	if err != nil {
+		return "", err
+	}
+	return signingInput + "." + signature, nil
+}
+
+func JWTDecode(token string) (JWTParts, error) {
+	var parts JWTParts
+	token = strings.TrimSpace(token)
+	segments := strings.Split(token, ".")
+	if len(segments) < 2 {
+		return parts, errors.New("invalid JWT token")
+	}
+	headerJSON, err := base64.RawURLEncoding.DecodeString(segments[0])
+	if err != nil {
+		return parts, fmt.Errorf("invalid header: %w", err)
+	}
+	payloadJSON, err := base64.RawURLEncoding.DecodeString(segments[1])
+	if err != nil {
+		return parts, fmt.Errorf("invalid payload: %w", err)
+	}
+	headerPretty, err := prettyJSON(headerJSON)
+	if err != nil {
+		return parts, fmt.Errorf("invalid header JSON: %w", err)
+	}
+	payloadPretty, err := prettyJSON(payloadJSON)
+	if err != nil {
+		return parts, fmt.Errorf("invalid payload JSON: %w", err)
+	}
+	parts.Header = headerPretty
+	parts.Payload = payloadPretty
+	if len(segments) > 2 {
+		parts.Signature = segments[2]
+	}
+	var headerData map[string]any
+	if err := json.Unmarshal(headerJSON, &headerData); err == nil {
+		if alg, ok := headerData["alg"].(string); ok {
+			parts.Algorithm = alg
+		}
+	}
+	return parts, nil
+}
+
+func compactJSON(input string) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, []byte(input)); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func prettyJSON(data []byte) (string, error) {
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, data, "", "  "); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func signJWT(signingInput, secret, algorithm string) (string, error) {
+	var mac hash.Hash
+	switch algorithm {
+	case "HS256", "":
+		mac = hmac.New(sha256.New, []byte(secret))
+	case "HS384":
+		mac = hmac.New(sha512.New384, []byte(secret))
+	case "HS512":
+		mac = hmac.New(sha512.New, []byte(secret))
+	default:
+		return "", fmt.Errorf("unsupported algorithm %s", algorithm)
+	}
+	_, _ = mac.Write([]byte(signingInput))
+	signature := mac.Sum(nil)
+	return base64.RawURLEncoding.EncodeToString(signature), nil
 }

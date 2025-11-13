@@ -53,6 +53,14 @@ func registerBindings(target js.Value) {
 	target.Set("encodeContent", js.FuncOf(encodeContent))
 	target.Set("decodeContent", js.FuncOf(decodeContent))
 	target.Set("hashContent", js.FuncOf(hashContent))
+	target.Set("urlEncode", js.FuncOf(urlEncode))
+	target.Set("urlDecode", js.FuncOf(urlDecode))
+	target.Set("jwtEncode", js.FuncOf(jwtEncode))
+	target.Set("jwtDecode", js.FuncOf(jwtDecode))
+	target.Set("markdownToHTML", js.FuncOf(markdownToHTML))
+	target.Set("htmlToMarkdown", js.FuncOf(htmlToMarkdown))
+	target.Set("convertNumberBase", js.FuncOf(convertNumberBase))
+	target.Set("ipv4Info", js.FuncOf(ipv4Info))
 }
 
 var boundHandlers []js.Func
@@ -128,6 +136,112 @@ func hashContent(_ js.Value, args []js.Value) any {
 	}
 	out := convert.HashContent(args[0].String())
 	return map[string]any{"result": stringMapToAny(out)}
+}
+
+func urlEncode(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	return map[string]any{"result": convert.URLEncode(args[0].String())}
+}
+
+func urlDecode(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	out, err := convert.URLDecode(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": out}
+}
+
+func jwtEncode(_ js.Value, args []js.Value) any {
+	if len(args) < 3 {
+		return map[string]any{"error": "payload, secret, algorithm required"}
+	}
+	token, err := convert.JWTEncode(args[0].String(), args[1].String(), args[2].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": map[string]any{"token": token}}
+}
+
+func jwtDecode(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "token required"}
+	}
+	parts, err := convert.JWTDecode(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": map[string]any{
+		"header":    parts.Header,
+		"payload":   parts.Payload,
+		"signature": parts.Signature,
+		"algorithm": parts.Algorithm,
+	}}
+}
+
+func markdownToHTML(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	out, err := convert.MarkdownToHTML(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": out}
+}
+
+func htmlToMarkdown(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "missing input"}
+	}
+	out, err := convert.HTMLToMarkdown(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": out}
+}
+
+func convertNumberBase(_ js.Value, args []js.Value) any {
+	if len(args) < 2 {
+		return map[string]any{"error": "base and value required"}
+	}
+	out, err := convert.ConvertNumberBase(args[0].String(), args[1].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": map[string]any{
+		"binary":  out.Binary,
+		"octal":   out.Octal,
+		"decimal": out.Decimal,
+		"hex":     out.Hex,
+	}}
+}
+
+func ipv4Info(_ js.Value, args []js.Value) any {
+	if len(args) == 0 {
+		return map[string]any{"error": "input required"}
+	}
+	info, err := convert.IPv4Info(args[0].String())
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": map[string]any{
+		"type":       info.Type,
+		"input":      info.Input,
+		"cidr":       info.CIDR,
+		"mask":       info.Mask,
+		"rangeStart": info.RangeStart,
+		"rangeEnd":   info.RangeEnd,
+		"total":      info.Total,
+		"standard":   info.Standard,
+		"threePart":  info.ThreePart,
+		"twoPart":    info.TwoPart,
+		"integer":    info.Integer,
+	}}
 }
 
 func stringMapToAny(in map[string]string) map[string]any {
