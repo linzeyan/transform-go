@@ -61,6 +61,7 @@ func registerBindings(target js.Value) {
 	target.Set("htmlToMarkdown", js.FuncOf(htmlToMarkdown))
 	target.Set("convertNumberBase", js.FuncOf(convertNumberBase))
 	target.Set("ipv4Info", js.FuncOf(ipv4Info))
+	target.Set("generateUUIDs", js.FuncOf(generateUUIDs))
 }
 
 var boundHandlers []js.Func
@@ -242,6 +243,14 @@ func ipv4Info(_ js.Value, args []js.Value) any {
 		"twoPart":    info.TwoPart,
 		"integer":    info.Integer,
 	}}
+}
+
+func generateUUIDs(_ js.Value, _ []js.Value) any {
+	result, err := convert.GenerateUUIDs()
+	if err != nil {
+		return map[string]any{"error": err.Error()}
+	}
+	return map[string]any{"result": stringMapToAny(result)}
 }
 
 func stringMapToAny(in map[string]string) map[string]any {

@@ -212,6 +212,10 @@ button#swap {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+#generatorWorkspace {
+  grid-template-columns: 1fr;
+}
+
 .tool-view.hidden {
   display: none;
 }
@@ -530,8 +534,44 @@ body.tool-pair .converter-only,
 body.tool-number .converter-controls,
 body.tool-number .converter-only,
 body.tool-ipv4 .converter-controls,
-body.tool-ipv4 .converter-only {
+body.tool-ipv4 .converter-only,
+body.tool-generator .converter-controls,
+body.tool-generator .converter-only {
   display: none;
+}
+
+.uuid-list {
+  padding: 16px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.uuid-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.uuid-row code {
+  font-size: 15px;
+  color: var(--fg);
+}
+
+.uuid-row button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.generator-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 960px) {

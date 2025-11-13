@@ -225,6 +225,24 @@
 					</section>
 				</div>
 
+				<div id="generatorWorkspace" class="tool-view hidden">
+					<section class="panel">
+						<div class="panel-header">
+							<div>
+								<h2>UUID Generator</h2>
+								<p>一次產生 UUID v1 ~ v5</p>
+							</div>
+							<div class="generator-actions">
+								<button id="uuidToggleCase" data-upper="false">
+									切換大小寫
+								</button>
+								<button id="uuidRegenerate">重新產生</button>
+							</div>
+						</div>
+						<div id="uuidList" class="uuid-list"></div>
+					</section>
+				</div>
+
 				<footer>
 					<div id="status">載入 WebAssembly...</div>
 					<div class="hotkeys">

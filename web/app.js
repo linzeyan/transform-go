@@ -99,6 +99,16 @@ const toolGroups = [
 			description: tool.description,
 		})),
 	},
+	{
+		name: "Generator",
+		tools: [
+			{
+				id: "generator-uuid",
+				label: "UUID Generator",
+				description: "產生 UUID v1~v5。",
+			},
+		],
+	},
 ];
 
 const coderToolModes = {};
@@ -118,6 +128,7 @@ converterPairTools.forEach((id) => pairToolSet.add(id));
 const coderToolSet = new Set([...coderMainTools, ...pairToolSet]);
 const numberToolSet = new Set(["converter-number-bases"]);
 const ipv4ToolSet = new Set(["converter-ipv4"]);
+const generatorToolSet = new Set(["generator-uuid"]);
 const coderModes = ["encode", "decode", "hash"];
 const coderModeTitles = {
 	encode: "Encode",
@@ -144,6 +155,10 @@ function isNumberTool(toolId) {
 
 function isIPv4Tool(toolId) {
 	return ipv4ToolSet.has(toolId);
+}
+
+function isGeneratorTool(toolId) {
+	return generatorToolSet.has(toolId);
 }
 
 const encodingGroups = [
@@ -311,6 +326,24 @@ let currentPairTool = null;
 let pairSyncing = false;
 let pairLastSource = "input";
 let numberSyncing = false;
+let uuidUppercase = false;
+let currentUUIDs = {};
+const uuidDisplayOrder = [
+	"v1",
+	"v2",
+	"v3",
+	"v4",
+	"v5",
+	"v6",
+	"v7",
+	"v8",
+	"guid",
+	"ulid",
+];
+const uuidDisplayLabels = {
+	guid: "GUID",
+	ulid: "ULID",
+};
 
 document.addEventListener("DOMContentLoaded", () => {
 	cacheElements();
@@ -374,6 +407,10 @@ function cacheElements() {
 	elements.ipv4Workspace = document.getElementById("ipv4Workspace");
 	elements.ipv4Input = document.getElementById("ipv4Input");
 	elements.ipv4Results = document.getElementById("ipv4Results");
+	elements.generatorWorkspace = document.getElementById("generatorWorkspace");
+	elements.uuidList = document.getElementById("uuidList");
+	elements.uuidToggleCase = document.getElementById("uuidToggleCase");
+	elements.uuidRegenerate = document.getElementById("uuidRegenerate");
 }
 
 function initCoderControls() {
@@ -542,6 +579,18 @@ function bindEvents() {
 	}
 	if (elements.ipv4Input) {
 		elements.ipv4Input.addEventListener("input", () => runIPv4Conversion());
+	}
+	if (elements.uuidRegenerate) {
+		elements.uuidRegenerate.addEventListener("click", () =>
+			refreshUUIDs(true),
+		);
+	}
+	if (elements.uuidToggleCase) {
+		elements.uuidToggleCase.addEventListener("click", () => {
+			uuidUppercase = !uuidUppercase;
+			refreshUUIDDisplay();
+			elements.uuidToggleCase.dataset.upper = uuidUppercase ? "true" : "false";
+		});
 	}
 	window.addEventListener("keydown", handleHotkeys);
 }
@@ -1075,6 +1124,91 @@ function renderIPv4Row(label, value) {
   `;
 }
 
+function activateGeneratorTool() {
+	uuidUppercase = false;
+	if (elements.uuidToggleCase) {
+		elements.uuidToggleCase.dataset.upper = "false";
+	}
+	refreshUUIDs(true);
+	setStatus("就緒", false, "ready");
+}
+
+function refreshUUIDs(force = false) {
+	if (!isGeneratorTool(currentTool)) return;
+	if (!wasmReady) {
+		setStatus("等待 WebAssembly 載入...", true);
+		return;
+	}
+	if (!force && currentUUIDs && Object.keys(currentUUIDs).length > 0) {
+		refreshUUIDDisplay();
+		return;
+	}
+	try {
+		const response = window.generateUUIDs();
+		if (!response) {
+			setStatus("WASM 尚未載入完成", true);
+			return;
+		}
+		if (response.error) {
+			setStatus(`⚠️ ${response.error}`, true);
+			return;
+		}
+		currentUUIDs = response.result || {};
+		refreshUUIDDisplay();
+		setStatus("已產生新的 UUID", false, "ready");
+	} catch (err) {
+		setStatus(`⚠️ ${err.message}`, true);
+	}
+}
+
+function refreshUUIDDisplay() {
+	if (!elements.uuidList) return;
+	if (!currentUUIDs || Object.keys(currentUUIDs).length === 0) {
+		elements.uuidList.innerHTML =
+			'<div class="muted">尚未產生任何 UUID</div>';
+		return;
+	}
+	const seen = new Set();
+	const entries = [];
+	uuidDisplayOrder.forEach((key) => {
+		if (currentUUIDs[key]) {
+			entries.push([key, currentUUIDs[key]]);
+			seen.add(key);
+		}
+	});
+	Object.keys(currentUUIDs).forEach((key) => {
+		if (!seen.has(key)) {
+			entries.push([key, currentUUIDs[key]]);
+		}
+	});
+	const rows = entries
+		.map(([version, value]) => {
+			const display = uuidUppercase ? value.toUpperCase() : value.toLowerCase();
+			const safeValue = escapeHTML(display);
+			const label =
+				uuidDisplayLabels[version] || version.toUpperCase();
+			return `
+        <div class="uuid-row">
+          <span>${label}</span>
+          <code>${safeValue}</code>
+          <button type="button" data-value="${escapeAttr(display)}" data-label="${label}" class="uuid-copy">Copy</button>
+        </div>
+      `;
+		})
+		.join("");
+	elements.uuidList.innerHTML = rows;
+	elements.uuidList.querySelectorAll(".uuid-copy").forEach((btn) => {
+		btn.addEventListener("click", () => {
+			const value = btn.dataset.value || "";
+			if (!value) return;
+			navigator.clipboard.writeText(value).then(
+				() => setStatus(`已複製 ${btn.dataset.label}`, false, "ready"),
+				() => setStatus("無法存取剪貼簿", true),
+			);
+		});
+	});
+}
+
 function selectTool(toolId) {
 	if (!toolInfo[toolId]) return;
 	currentTool = toolId;
@@ -1086,6 +1220,7 @@ function selectTool(toolId) {
 	const isPair = isPairToolId(toolId);
 	const isNumber = isNumberTool(toolId);
 	const isIPv4 = isIPv4Tool(toolId);
+	const isGenerator = isGeneratorTool(toolId);
 	if (!isPair) {
 		currentPairTool = null;
 		updatePairMeta(null);
@@ -1095,6 +1230,7 @@ function selectTool(toolId) {
 	document.body.classList.toggle("tool-pair", isPair);
 	document.body.classList.toggle("tool-number", isNumber);
 	document.body.classList.toggle("tool-ipv4", isIPv4);
+	document.body.classList.toggle("tool-generator", isGenerator);
 	elements.converterWorkspace.classList.toggle("hidden", !isFormat);
 	if (elements.coderWorkspace) {
 		elements.coderWorkspace.classList.toggle("hidden", !isCoderMain);
@@ -1107,6 +1243,9 @@ function selectTool(toolId) {
 	}
 	if (elements.ipv4Workspace) {
 		elements.ipv4Workspace.classList.toggle("hidden", !isIPv4);
+	}
+	if (elements.generatorWorkspace) {
+		elements.generatorWorkspace.classList.toggle("hidden", !isGenerator);
 	}
 	updateToolButtons();
 	if (isFormat) {
@@ -1134,6 +1273,10 @@ function selectTool(toolId) {
 	}
 	if (isIPv4) {
 		activateIPv4Tool();
+		return;
+	}
+	if (isGenerator) {
+		activateGeneratorTool();
 		return;
 	}
 }
@@ -1314,6 +1457,14 @@ function copyOutput() {
 }
 
 function clearAll() {
+	if (isGeneratorTool(currentTool)) {
+		uuidUppercase = false;
+		if (elements.uuidToggleCase) {
+			elements.uuidToggleCase.dataset.upper = "false";
+		}
+		refreshUUIDs(true);
+		return;
+	}
 	if (isNumberTool(currentTool)) {
 		numberSyncing = true;
 		if (elements.numberBinary) elements.numberBinary.value = "";
@@ -1366,6 +1517,8 @@ function handleHotkeys(e) {
 			scheduleCoder(true);
 		} else if (isPairToolId(currentTool)) {
 			runPairConversion("input");
+		} else if (isGeneratorTool(currentTool)) {
+			refreshUUIDs(true);
 		}
 	}
 }
@@ -1454,6 +1607,9 @@ async function loadWasm() {
 		}
 		if (isIPv4Tool(currentTool) && elements.ipv4Input?.value.trim()) {
 			runIPv4Conversion();
+		}
+		if (isGeneratorTool(currentTool)) {
+			refreshUUIDs(true);
 		}
 	} catch (err) {
 		console.error(err);
