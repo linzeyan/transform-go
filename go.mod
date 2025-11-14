@@ -3,7 +3,9 @@ module github.com/linzeyan/transform-go
 go 1.25.4
 
 require (
+	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/gin-gonic/gin v1.10.0
+	github.com/go-resty/resty/v2 v2.11.0
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/stretchr/testify v1.9.0
 	github.com/ugorji/go/codec v1.2.12
@@ -11,6 +13,7 @@ require (
 )
 
 require (
+	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect

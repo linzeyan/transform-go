@@ -685,7 +685,7 @@ func (p *toonParser) parse() (any, error) {
 	}
 	line := p.lines[0]
 	if strings.HasPrefix(line.text, "[") {
-		return p.parseHeader("", 0)
+		return p.parseHeader(0)
 	}
 	if !strings.Contains(line.text, ":") && len(p.lines) == 1 {
 		return parsePrimitiveToken(line.text), nil
@@ -716,7 +716,7 @@ func (p *toonParser) parseObject(depth int) (map[string]any, error) {
 		switch {
 		case headerRegex.MatchString(line.text):
 			p.idx--
-			arr, err := p.parseHeader(key, depth)
+			arr, err := p.parseHeader(depth)
 			if err != nil {
 				return nil, err
 			}
@@ -736,7 +736,7 @@ func (p *toonParser) parseObject(depth int) (map[string]any, error) {
 
 var headerRegex = regexp.MustCompile(`^[A-Za-z0-9._"]*\[\d+[|\t]?\](?:\{.*\})?:`)
 
-func (p *toonParser) parseHeader(key string, depth int) (any, error) {
+func (p *toonParser) parseHeader(depth int) (any, error) {
 	line := p.lines[p.idx]
 	p.idx++
 	text := line.text
@@ -831,7 +831,7 @@ func (p *toonParser) parseHeader(key string, depth int) (any, error) {
 			}
 		} else if headerRegex.MatchString(content) {
 			p.idx--
-			arr, err := p.parseHeader("", depth+1)
+			arr, err := p.parseHeader(depth + 1)
 			if err != nil {
 				return nil, err
 			}
