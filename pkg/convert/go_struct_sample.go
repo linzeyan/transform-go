@@ -11,6 +11,8 @@ import (
 	"go/token"
 	"sort"
 	"strings"
+
+	"github.com/linzeyan/transform-go/pkg/common"
 )
 
 func JSONToGoStruct(input string) (string, error) {
@@ -40,7 +42,7 @@ func renderType(v any) string {
 	case []any:
 		return "[]" + renderArrayElement(val)
 	case json.Number:
-		if looksInteger(val) {
+		if common.LooksInteger(val) {
 			return "int"
 		}
 		return "float64"
@@ -65,7 +67,7 @@ func renderStruct(obj map[string]any) string {
 	sort.Strings(keys)
 	seen := map[string]int{}
 	for _, key := range keys {
-		fieldName := exportName(key)
+		fieldName := common.ExportName(key)
 		if fieldName == "" {
 			fieldName = "Field"
 		}
@@ -187,7 +189,7 @@ func sampleValue(expr ast.Expr, types map[string]ast.Expr, seen map[string]int, 
 	case *ast.StructType:
 		obj := make(map[string]any)
 		for _, field := range t.Fields.List {
-			name := jsonFieldName(field)
+			name := common.JSONFieldName(field)
 			if name == "" {
 				continue
 			}

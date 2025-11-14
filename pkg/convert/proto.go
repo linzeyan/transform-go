@@ -9,7 +9,11 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/linzeyan/transform-go/pkg/common"
 )
+
+var protoMessageDeclRe = regexp.MustCompile(`message\s+([A-Za-z0-9_]+)\s*\{`)
 
 func JSONToProto(input string) (string, error) {
 	data, err := decodeJSONValue(input)
@@ -149,10 +153,10 @@ func (b *protoBuilder) buildMessage(name string, obj map[string]any) string {
 func (b *protoBuilder) typeForField(parent, field string, v any) protoType {
 	switch val := v.(type) {
 	case map[string]any:
-		typeName := b.buildMessage(parent+exportName(field), val)
+		typeName := b.buildMessage(parent+common.ExportName(field), val)
 		return protoType{typeName: typeName}
 	case []any:
-		t := b.repeatedType(parent+exportName(field)+"Item", val)
+		t := b.repeatedType(parent+common.ExportName(field)+"Item", val)
 		t.repeated = true
 		return t
 	default:
@@ -189,7 +193,7 @@ func (b *protoBuilder) repeatedType(name string, arr []any) protoType {
 func protoScalarType(v any) string {
 	switch val := v.(type) {
 	case json.Number:
-		if looksInteger(val) {
+		if common.LooksInteger(val) {
 			return "int32"
 		}
 		return "double"
@@ -298,17 +302,16 @@ func parseProtoSchema(src string) *protoSchema {
 }
 
 func parseProtoSection(src string, ps *protoSchema) {
-	re := regexp.MustCompile(`message\s+([A-Za-z0-9_]+)\s*\{`)
 	idx := 0
 	for idx < len(src) {
-		loc := re.FindStringSubmatchIndex(src[idx:])
+		loc := protoMessageDeclRe.FindStringSubmatchIndex(src[idx:])
 		if loc == nil {
 			break
 		}
 		name := src[idx+loc[2] : idx+loc[3]]
 		start := idx + loc[0]
 		openIdx := start + strings.Index(src[start:], "{")
-		closeIdx := findMatchingBrace(src, openIdx)
+		closeIdx := common.FindMatchingBrace(src, openIdx)
 		if closeIdx == -1 {
 			break
 		}
@@ -437,7 +440,7 @@ func (ps *protoSchema) renderGoStruct(msg *protoMessage) string {
 				buf.WriteString("\t// " + line + "\n")
 			}
 		}
-		goName := exportName(field.Name)
+		goName := common.ExportName(field.Name)
 		if goName == "" {
 			goName = "Field"
 		}
@@ -474,7 +477,7 @@ func protoTypeToGo(typeName string, repeated bool) string {
 }
 
 func protoFieldName(name string) string {
-	name = exportName(name)
+	name = common.ExportName(name)
 	if name == "" {
 		return ""
 	}

@@ -5,7 +5,9 @@ package main
 import (
 	"syscall/js"
 
+	"github.com/linzeyan/transform-go/pkg/code"
 	"github.com/linzeyan/transform-go/pkg/convert"
+	"github.com/linzeyan/transform-go/pkg/generate"
 )
 
 func main() {
@@ -118,7 +120,7 @@ func encodeContent(_ js.Value, args []js.Value) any {
 	if len(args) == 0 {
 		return map[string]any{"error": "missing input"}
 	}
-	out, err := convert.EncodeContent(args[0].String())
+	out, err := code.EncodeContent(args[0].String())
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}
@@ -129,7 +131,7 @@ func decodeContent(_ js.Value, args []js.Value) any {
 	if len(args) < 2 {
 		return map[string]any{"error": "encoding and input required"}
 	}
-	out, err := convert.DecodeContent(args[0].String(), args[1].String())
+	out, err := code.DecodeContent(args[0].String(), args[1].String())
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}
@@ -140,7 +142,7 @@ func hashContent(_ js.Value, args []js.Value) any {
 	if len(args) == 0 {
 		return map[string]any{"error": "missing input"}
 	}
-	out := convert.HashContent(args[0].String())
+	out := code.HashContent(args[0].String())
 	return map[string]any{"result": stringMapToAny(out)}
 }
 
@@ -148,14 +150,14 @@ func urlEncode(_ js.Value, args []js.Value) any {
 	if len(args) == 0 {
 		return map[string]any{"error": "missing input"}
 	}
-	return map[string]any{"result": convert.URLEncode(args[0].String())}
+	return map[string]any{"result": code.URLEncode(args[0].String())}
 }
 
 func urlDecode(_ js.Value, args []js.Value) any {
 	if len(args) == 0 {
 		return map[string]any{"error": "missing input"}
 	}
-	out, err := convert.URLDecode(args[0].String())
+	out, err := code.URLDecode(args[0].String())
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}
@@ -166,7 +168,7 @@ func jwtEncode(_ js.Value, args []js.Value) any {
 	if len(args) < 3 {
 		return map[string]any{"error": "payload, secret, algorithm required"}
 	}
-	token, err := convert.JWTEncode(args[0].String(), args[1].String(), args[2].String())
+	token, err := code.JWTEncode(args[0].String(), args[1].String(), args[2].String())
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}
@@ -177,7 +179,7 @@ func jwtDecode(_ js.Value, args []js.Value) any {
 	if len(args) == 0 {
 		return map[string]any{"error": "token required"}
 	}
-	parts, err := convert.JWTDecode(args[0].String())
+	parts, err := code.JWTDecode(args[0].String())
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}
@@ -251,7 +253,7 @@ func ipv4Info(_ js.Value, args []js.Value) any {
 }
 
 func generateUUIDs(_ js.Value, _ []js.Value) any {
-	result, err := convert.GenerateUUIDs()
+	result, err := generate.GenerateUUIDs()
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}
@@ -266,7 +268,7 @@ func generateUserAgents(_ js.Value, args []js.Value) any {
 	if len(args) > 1 {
 		os = args[1].String()
 	}
-	result, err := convert.GenerateUserAgents(browser, os)
+	result, err := generate.GenerateUserAgents(browser, os)
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}

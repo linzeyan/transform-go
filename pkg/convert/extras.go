@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+var ipv4RangeReplacer = strings.NewReplacer(" ", "", "->", "-", "—", "-", "–", "-")
+
 type NumberBases struct {
 	Binary  string `json:"binary"`
 	Octal   string `json:"octal"`
@@ -162,7 +164,7 @@ func ipv4WithPrefix(input string) (IPv4Result, error) {
 
 func ipv4Range(input string) (IPv4Result, error) {
 	res := IPv4Result{Input: input, Type: "range"}
-	normalized := strings.NewReplacer(" ", "", "->", "-", "—", "-", "–", "-").Replace(input)
+	normalized := ipv4RangeReplacer.Replace(input)
 	parts := strings.Split(normalized, "-")
 	if len(parts) != 2 {
 		return res, errors.New("range must be in start-end format")

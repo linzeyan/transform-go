@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/linzeyan/transform-go/pkg/common"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -19,7 +20,7 @@ func JSONToYAML(input string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return encodeYAML(normalizeJSONNumbers(data))
+	return common.EncodeYAML(common.NormalizeJSONNumbers(data))
 }
 
 func YAMLToJSON(input string) (string, error) {
@@ -27,7 +28,7 @@ func YAMLToJSON(input string) (string, error) {
 	if err := yaml.Unmarshal([]byte(input), &data); err != nil {
 		return "", err
 	}
-	normalized := normalizeYAML(data)
+	normalized := common.NormalizeYAML(data)
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
@@ -47,7 +48,7 @@ func JSONToTOML(input string) (string, error) {
 	if !ok {
 		return "", errors.New("TOML root must be an object")
 	}
-	out, err := toml.Marshal(normalizeJSONNumbers(obj).(map[string]any))
+	out, err := toml.Marshal(common.NormalizeJSONNumbers(obj).(map[string]any))
 	if err != nil {
 		return "", err
 	}
@@ -76,7 +77,7 @@ func JSONToXML(input string) (string, error) {
 	}
 	builder := &strings.Builder{}
 	builder.WriteString(xml.Header)
-	buildXML(builder, "root", normalizeJSONNumbers(data), 0)
+	buildXML(builder, "root", common.NormalizeJSONNumbers(data), 0)
 	return builder.String(), nil
 }
 

@@ -8,6 +8,8 @@ import (
 	"go/parser"
 	"go/token"
 	"strings"
+
+	"github.com/linzeyan/transform-go/pkg/common"
 )
 
 type StructField struct {
@@ -79,7 +81,7 @@ func buildStructDefinition(name string, st *ast.StructType, fileSet *token.FileS
 		}
 		for _, ident := range names {
 			if jsonName == "" {
-				jsonName = lowerFirst(ident.Name)
+				jsonName = common.LowerFirst(ident.Name)
 			}
 			def.Fields = append(def.Fields, StructField{
 				GoName:     ident.Name,

@@ -8,7 +8,11 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/linzeyan/transform-go/pkg/common"
 )
+
+var graphqlTypeDeclRe = regexp.MustCompile(`type\s+([A-Za-z0-9_]+)\s*\{`)
 
 func JSONToGraphQL(input string) (string, error) {
 	data, err := decodeJSONValue(input)
@@ -164,9 +168,9 @@ func (b *graphQLBuilder) arrayType(name string, arr []any) string {
 func (b *graphQLBuilder) fieldType(parentName, field string, v any) string {
 	switch val := v.(type) {
 	case map[string]any:
-		return b.buildObject(parentName+exportName(field), val)
+		return b.buildObject(parentName+common.ExportName(field), val)
 	case []any:
-		return "[" + b.arrayType(parentName+exportName(field)+"Item", val) + "]"
+		return "[" + b.arrayType(parentName+common.ExportName(field)+"Item", val) + "]"
 	default:
 		return scalarGraphQLType(val)
 	}
@@ -175,7 +179,7 @@ func (b *graphQLBuilder) fieldType(parentName, field string, v any) string {
 func scalarGraphQLType(v any) string {
 	switch val := v.(type) {
 	case json.Number:
-		if looksInteger(val) {
+		if common.LooksInteger(val) {
 			return "Int"
 		}
 		return "Float"
@@ -193,7 +197,7 @@ func scalarGraphQLType(v any) string {
 }
 
 func sanitizeTypeName(name string) string {
-	n := exportName(name)
+	n := common.ExportName(name)
 	if n == "" {
 		return "Type"
 	}
@@ -201,11 +205,11 @@ func sanitizeTypeName(name string) string {
 }
 
 func graphQLFieldName(name string) string {
-	n := exportName(name)
+	n := common.ExportName(name)
 	if n == "" {
 		return ""
 	}
-	return lowerFirst(n)
+	return common.LowerFirst(n)
 }
 
 type gqlSchema struct {
@@ -230,10 +234,9 @@ func parseGraphQLSchema(src string) *gqlSchema {
 		order: []string{},
 		types: make(map[string]*gqlType),
 	}
-	re := regexp.MustCompile(`type\s+([A-Za-z0-9_]+)\s*\{`)
 	idx := 0
 	for idx < len(src) {
-		loc := re.FindStringSubmatchIndex(src[idx:])
+		loc := graphqlTypeDeclRe.FindStringSubmatchIndex(src[idx:])
 		if loc == nil {
 			break
 		}
@@ -244,7 +247,7 @@ func parseGraphQLSchema(src string) *gqlSchema {
 			break
 		}
 		openIdx := bodyStart + open
-		closeIdx := findMatchingBrace(src, openIdx)
+		closeIdx := common.FindMatchingBrace(src, openIdx)
 		if closeIdx == -1 {
 			break
 		}
@@ -356,12 +359,12 @@ func (s *gqlSchema) renderGoStruct(typ *gqlType) string {
 				buf.WriteString("\t// " + line + "\n")
 			}
 		}
-		goName := exportName(field.Name)
+		goName := common.ExportName(field.Name)
 		if goName == "" {
 			goName = "Field"
 		}
 		goType := graphQLTypeToGo(field.TypeName, field.List)
-		tag := fmt.Sprintf("`json:\"%s\"`", lowerFirst(field.Name))
+		tag := fmt.Sprintf("`json:\"%s\"`", common.LowerFirst(field.Name))
 		buf.WriteString(fmt.Sprintf("\t%s %s %s\n", goName, goType, tag))
 	}
 	buf.WriteString("}")
@@ -380,7 +383,7 @@ func renderGraphQLType(def StructDefinition) string {
 				lines = append(lines, "  # "+line)
 			}
 		}
-		fieldName := lowerFirst(field.GoName)
+		fieldName := common.LowerFirst(field.GoName)
 		if fieldName == "" {
 			fieldName = "field"
 		}

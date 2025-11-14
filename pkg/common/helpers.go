@@ -1,4 +1,4 @@
-package convert
+package common
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func looksInteger(num json.Number) bool {
+func LooksInteger(num json.Number) bool {
 	if strings.ContainsRune(num.String(), '.') {
 		return false
 	}
@@ -20,17 +20,17 @@ func looksInteger(num json.Number) bool {
 	return err == nil
 }
 
-func normalizeJSONNumbers(v any) any {
+func NormalizeJSONNumbers(v any) any {
 	switch val := v.(type) {
 	case map[string]any:
 		res := make(map[string]any, len(val))
 		for k, vv := range val {
-			res[k] = normalizeJSONNumbers(vv)
+			res[k] = NormalizeJSONNumbers(vv)
 		}
 		return res
 	case []any:
 		for i, item := range val {
-			val[i] = normalizeJSONNumbers(item)
+			val[i] = NormalizeJSONNumbers(item)
 		}
 		return val
 	case json.Number:
@@ -46,24 +46,24 @@ func normalizeJSONNumbers(v any) any {
 	}
 }
 
-func normalizeYAML(v any) any {
+func NormalizeYAML(v any) any {
 	switch val := v.(type) {
 	case map[string]any:
 		res := make(map[string]any, len(val))
 		for k, vv := range val {
-			res[k] = normalizeYAML(vv)
+			res[k] = NormalizeYAML(vv)
 		}
 		return res
 	case map[interface{}]interface{}:
 		res := make(map[string]any, len(val))
 		for k, vv := range val {
 			key := fmt.Sprint(k)
-			res[key] = normalizeYAML(vv)
+			res[key] = NormalizeYAML(vv)
 		}
 		return res
 	case []interface{}:
 		for i, item := range val {
-			val[i] = normalizeYAML(item)
+			val[i] = NormalizeYAML(item)
 		}
 		return val
 	default:
@@ -71,7 +71,7 @@ func normalizeYAML(v any) any {
 	}
 }
 
-func encodeYAML(data any) (string, error) {
+func EncodeYAML(data any) (string, error) {
 	buf := &bytes.Buffer{}
 	enc := yaml.NewEncoder(buf)
 	enc.SetIndent(2)
@@ -85,7 +85,7 @@ func encodeYAML(data any) (string, error) {
 	return strings.TrimRight(buf.String(), "\n"), nil
 }
 
-func jsonFieldName(field *ast.Field) string {
+func JSONFieldName(field *ast.Field) string {
 	if field.Tag != nil {
 		tag := strings.Trim(field.Tag.Value, "`")
 		val := reflect.StructTag(tag).Get("json")
@@ -99,10 +99,10 @@ func jsonFieldName(field *ast.Field) string {
 	if len(field.Names) == 0 {
 		return ""
 	}
-	return lowerFirst(field.Names[0].Name)
+	return LowerFirst(field.Names[0].Name)
 }
 
-func exportName(key string) string {
+func ExportName(key string) string {
 	var runes []rune
 	capNext := true
 	for _, r := range key {
@@ -124,11 +124,11 @@ func exportName(key string) string {
 	return out
 }
 
-func lowerFirst(s string) string {
+func LowerFirst(s string) string {
 	if s == "" {
 		return s
 	}
-	words := splitWords(s)
+	words := SplitWords(s)
 	if len(words) == 0 {
 		return strings.ToLower(s)
 	}
@@ -138,7 +138,7 @@ func lowerFirst(s string) string {
 		if word == "" {
 			continue
 		}
-		if isAllUpper(word) {
+		if IsAllUpper(word) {
 			buf.WriteString(word)
 			continue
 		}
@@ -149,7 +149,7 @@ func lowerFirst(s string) string {
 	return buf.String()
 }
 
-func splitWords(s string) []string {
+func SplitWords(s string) []string {
 	if s == "" {
 		return nil
 	}
@@ -190,7 +190,7 @@ func splitWords(s string) []string {
 	return parts
 }
 
-func isAllUpper(s string) bool {
+func IsAllUpper(s string) bool {
 	if s == "" {
 		return false
 	}
@@ -202,7 +202,7 @@ func isAllUpper(s string) bool {
 	return true
 }
 
-func findMatchingBrace(src string, openIdx int) int {
+func FindMatchingBrace(src string, openIdx int) int {
 	if openIdx < 0 || openIdx >= len(src) || src[openIdx] != '{' {
 		return -1
 	}

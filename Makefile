@@ -1,5 +1,4 @@
-PKG := ./pkg/convert
-FUZZ_FUNCS := $(shell grep -hoE '^func[[:space:]]+(Fuzz[[:alnum:]_]+)' $(PKG)/*_test.go | awk '{print $$2}')
+FUZZTIME ?= 30s
 
 all: test wasm build
 .PHONY: all
@@ -24,8 +23,13 @@ benchmark:
 .PHONY: benchmark
 
 fuzz:
-	@for f in $(FUZZ_FUNCS); do \
-		echo "==> Running $$f"; \
-		go test -fuzz=$$f -run=^$$f -fuzztime=30s $(PKG) || exit $$?; \
+	@go list -f '{{.Dir}} {{.ImportPath}}' ./pkg/... | while read -r dir pkg; do \
+		if ls $$dir/*_test.go >/dev/null 2>&1 && grep -qE '^func[[:space:]]+Fuzz' $$dir/*_test.go; then \
+			echo "==> Running fuzzers in $$pkg"; \
+			for f in $$(grep -hoE '^func[[:space:]]+(Fuzz[[:alnum:]_]+)' $$dir/*_test.go | awk '{print $$2}'); do \
+				echo "  -> $$f"; \
+				go test -run=^$$f -fuzz=$$f -fuzztime=$(FUZZTIME) $$pkg || exit $$?; \
+			done; \
+		fi; \
 	done
 .PHONY: fuzz
